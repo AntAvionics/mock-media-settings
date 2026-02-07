@@ -122,8 +122,10 @@
   </div>
 
 <script>
-window.onload(fillExamplePatch())
-window.onload(fillExampleFull())
+window.onload = function() {
+    fillExamplePatch();
+    fillExampleFull();
+};
 async function fetchJson(path, opts) {
   try {
     const r = await fetch(path, opts);
