@@ -164,10 +164,6 @@ def _accept_json_request():
 def api_send_patch():
     """
     Broadcast a PATCH message to the aircraft and record it in history.
-
-    The service does NOT attempt to apply or validate patches. It simply forwards
-    the operator-supplied payload and records both the outbound request and the
-    aircraft response (if any).
     """
     payload, err = _accept_json_request()
     if err:
@@ -215,9 +211,6 @@ def api_send_full():
 def api_send_rollback():
     """
     Broadcast a ROLLBACK command to the aircraft and record it in history.
-
-    The aircraft is expected to perform rollback actions and optionally report
-    results back via /api/report.
     """
     payload, err = _accept_json_request()
     if err:
@@ -237,28 +230,41 @@ def api_send_rollback():
     return jsonify(response_body), 200
 
 
-@app.route("/api/report", methods=["POST"])
-def api_report():
-    """
-    Endpoint for aircraft (or other systems) to POST reports back to this broadcaster.
-    Reports are stored in the same history so operators can inspect them.
-
-    Examples of inbound reports:
-      - { type: "PATCH_FAILED", patch_id: 123, reason: "validation error ..." }
-      - { type: "ROLLBACK_DONE", version: 42 }
-    """
-    payload, err = _accept_json_request()
-    if err:
-        return jsonify({"error": "invalid payload", "detail": err}), 400
-
-    entry = store.add_entry("REPORT", payload)
-    store.update_entry(entry.id, "ok", {"response": payload})
-    return jsonify({"saved_record_id": entry.id}), 201
-
-
 @app.route("/api/ping", methods=["GET"])
 def api_ping():
-    return jsonify({"status": "ok", "time": datetime.utcnow().isoformat() + "Z"})
+    """
+    Ping the aircraft via GET and return its reported status/version.
+    """
+    url = app.config["AIRCRAFT_URL"]
+    timeout = app.config["REQUEST_TIMEOUT"]
+
+    try:
+        logger.info("PING -> aircraft %s", url)
+        started = datetime.utcnow()
+        resp = requests.get(url, timeout=timeout)
+        elapsed = (datetime.utcnow() - started).total_seconds() * 1000.0
+
+        try:
+            body = resp.json()
+        except Exception:
+            body = resp.text
+
+        ok = 200 <= resp.status_code < 300
+
+        return jsonify({
+            "ok": ok,
+            "status_code": resp.status_code,
+            "elapsed_ms": round(elapsed, 1),
+            "response": body
+        }), 200 if ok else 502
+
+    except requests.RequestException as e:
+        logger.exception("Ping to aircraft failed")
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+            "note": "Unable to reach aircraft"
+        }), 502
 
 
 if __name__ == "__main__":

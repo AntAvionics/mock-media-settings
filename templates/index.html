@@ -5,403 +5,265 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Mock Media Settings — Dashboard</title>
   <style>
-    :root { --bg:#f6f8fa; --card:#fff; --muted:#6b7280; --accent:#2563eb; --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace; }
-    body { margin:0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:var(--bg); color:#111827; padding:20px; }
+    :root {
+      --bg:#f6f8fa; --card:#fff; --muted:#6b7280;
+      --accent:#2563eb; --mono: ui-monospace, SFMono-Regular, Menlo, Monaco,
+      'Roboto Mono', 'Courier New', monospace;
+    }
+    body {
+      margin:0; padding:20px;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background:var(--bg); color:#111827;
+    }
     .container { max-width:1000px; margin:0 auto; }
     header { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
     h1 { margin:0; font-size:1.25rem; }
     .sub { color:var(--muted); font-size:0.9rem; }
 
-    .grid { display:grid; gap:12px; grid-template-columns: 1fr 380px; align-items:start; }
-    .card { background:var(--card); border:1px solid #e6edf3; border-radius:8px; padding:12px; box-shadow:0 1px 0 rgba(16,24,40,0.02); }
-    pre { background:#0b1220; color:#e6eef8; padding:12px; border-radius:6px; overflow:auto; font-family:var(--mono); font-size:13px; line-height:1.4; max-height:420px; }
-    label { display:block; margin-top:8px; font-size:0.9rem; color:#111827; }
-    textarea, input[type="text"] { width:100%; box-sizing:border-box; font-family:var(--mono); font-size:13px; padding:8px; border-radius:6px; border:1px solid #e6edf3; }
-    .btn { display:inline-block; background:var(--accent); color:white; padding:8px 12px; border-radius:6px; cursor:pointer; border: none; font-weight:600; }
-    .btn.secondary { background:#111827; opacity:0.95; }
+    .grid { display:grid; gap:12px; grid-template-columns: 1fr 380px; }
+    .card {
+      background:var(--card);
+      border:1px solid #e6edf3;
+      border-radius:8px;
+      padding:12px;
+      box-shadow:0 1px 0 rgba(16,24,40,0.02);
+    }
+    pre {
+      background:#0b1220; color:#e6eef8;
+      padding:12px; border-radius:6px;
+      overflow:auto; font-family:var(--mono);
+      font-size:13px; line-height:1.4; max-height:420px;
+    }
+    label { display:block; margin-top:8px; font-size:0.9rem; }
+    textarea, input, select {
+      width:100%; box-sizing:border-box;
+      font-family:var(--mono); font-size:13px;
+      padding:8px; border-radius:6px;
+      border:1px solid #e6edf3;
+    }
+    .btn {
+      background:var(--accent); color:white;
+      padding:8px 12px; border-radius:6px;
+      cursor:pointer; border:none; font-weight:600;
+    }
+    .btn.secondary { background:#111827; }
     .btn[disabled] { opacity:0.5; cursor:not-allowed; }
-    .row { display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; }
-    .muted { color:var(--muted); font-size:0.9rem; }
+    .row { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
     .small { font-size:0.85rem; color:var(--muted); }
-    #state-summary { min-height:100px; padding:8px; border-radius:6px; border:1px solid #e6edf3; background:#f9fafb; font-family:var(--mono); font-size:13px; white-space:pre-wrap; }
+    #state-summary {
+      min-height:100px; padding:8px;
+      border-radius:6px; border:1px solid #e6edf3;
+      background:#f9fafb;
+      font-family:var(--mono); font-size:13px;
+      white-space:pre-wrap;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <div>
-        <h1>Mock Media Settings - Dashboard</h1>
-        <div class="sub">View state, stage patches, send FULL/PATCH/ROLLBACK to aircraft (forwarded to <code id="aircraft-url">{{ aircraft_url }}</code>).</div>
+<div class="container">
+  <header>
+    <div>
+      <h1>Mock Media Settings — Dashboard</h1>
+      <div class="sub">
+        Forwarding to aircraft:
+        <code>{{ aircraft_url }}</code>
       </div>
-    </header>
+    </div>
+  </header>
 
-    <div class="grid">
-      <div>
-        <div class="card">
-          <h3 style="margin-top:0">Current State</h3>
-          <div id="state-summary">Loading…</div>
-          <div class="row">
-            <button class="btn" onclick="refreshState()">Refresh</button>
-            <button class="btn" onclick="fetchHistory()">Show Broadcast History</button>
-          </div>
-          <div class="small" style="margin-top:8px">
-            This panel shows a human-friendly summary of the broadcaster's state and recent activity.
-            The broadcaster only forwards messages to the aircraft and records the outbound results.
-          </div>
-          <div class="small" id="initial-warning" style="margin-top:4px; color:#b91c1c; font-weight:600;">
-            You must perform an Initial Ad-load (v1) before sending PATCH or ROLLBACK commands.
-          </div>
+  <div class="grid">
+    <!-- LEFT -->
+    <div>
+      <div class="card">
+        <h3>Current State</h3>
+        <div id="state-summary">Loading…</div>
+        <div class="row">
+          <button class="btn" onclick="refreshState()">Refresh</button>
+          <button class="btn" onclick="fetchHistory()">Show History</button>
         </div>
-
-        <div class="card" style="margin-top:12px">
-          <h3 style="margin-top:0">Send PATCH</h3>
-          <label>Patch JSON (example)
-            <textarea id="patch-json" rows="6">{ "patch_id": 151, "prev": 150, "changes": { "campaignA_priority": 85 } }</textarea>
-          </label>
-          <div class="row">
-            <button class="btn" id="btn-send-patch" onclick="sendPatch()" disabled>Send PATCH</button>
-            <button class="btn secondary" onclick="fillExamplePatch()">Insert Example</button>
-          </div>
-          <div class="small">PATCH is only enabled after an Initial Ad-load (v1) or another FULL snapshot has been successfully broadcast.</div>
-        </div>
-
-        <div class="card" style="margin-top:12px">
-          <h3 style="margin-top:0">Send FULL snapshot</h3>
-          <label>Full Snapshot JSON
-            <textarea id="full-json" rows="6">{ "version": 160, "data": { "campaignA_priority": 70, "campaignB_routes": [] } }</textarea>
-          </label>
-          <div class="row">
-            <button class="btn" onclick="sendFull()">Send FULL</button>
-            <button class="btn" onclick="sendInitialAdLoad()">Initial Ad-load (v1)</button>
-            <button class="btn secondary" onclick="fillExampleFull()">Insert Example</button>
-          </div>
-          <div class="small">Initial Ad-load (v1) establishes the baseline configuration. Patches and rollbacks should only be sent after a successful FULL.</div>
-        </div>
-
-        <div class="card" style="margin-top:12px">
-          <h3 style="margin-top:0">Send ROLLBACK</h3>
-          <label>Target (LVA or LKG or integer version)
-            <input id="rollback-target" type="text" value="LVA" />
-          </label>
-          <div class="row">
-            <button class="btn" id="btn-send-rollback" onclick="sendRollback()" disabled>Send ROLLBACK</button>
-            <button class="btn secondary" onclick="fillExampleRollback()">Insert Example</button>
-          </div>
-          <div class="small">ROLLBACK is only enabled after an Initial Ad-load (v1) or another FULL snapshot has been successfully broadcast.</div>
+        <div id="initial-warning" class="small" style="color:#b91c1c;font-weight:600">
+          Initial FULL (v1+) required before PATCH or ROLLBACK.
         </div>
       </div>
 
-      <div>
-        <div class="card">
-          <h3 style="margin-top:0">Activity / Response</h3>
-          <pre id="activity">Idle</pre>
+      <div class="card" style="margin-top:12px">
+        <h3>Send PATCH</h3>
+        <textarea id="patch-json" rows="7"></textarea>
+        <div class="row">
+          <button class="btn" id="btn-send-patch" onclick="sendPatch()" disabled>
+            Send PATCH
+          </button>
+          <button class="btn secondary" onclick="fillExamplePatch()">Example</button>
         </div>
+      </div>
 
-        <div class="card" style="margin-top:12px">
-          <h3 style="margin-top:0">Diagnostics</h3>
-          <div class="small"><strong>Note:</strong> messages are forwarded to the aircraft endpoint configured by the server. Use these tools to inspect connectivity and recent broadcasts.</div>
-          <div style="margin-top:8px">
-            <button class="btn" onclick="pingAircraft()">Ping aircraft</button>
-            <button class="btn" onclick="fetchHistory()">Load History</button>
-          </div>
-          <div id="history-list" style="margin-top:12px; max-height:220px; overflow:auto; font-family:var(--mono); font-size:13px;">
-            <!-- history items will be rendered here as clickable rows -->
-            <div class="small muted">No history loaded. Click "Load History" or "Show Broadcast History".</div>
-          </div>
-          <div class="small" style="margin-top:8px">Click a history row to view details in the Activity panel.</div>
+      <div class="card" style="margin-top:12px">
+        <h3>Send FULL snapshot</h3>
+        <textarea id="full-json" rows="7"></textarea>
+        <div class="row">
+          <button class="btn" onclick="sendFull()">Send FULL</button>
+          <button class="btn secondary" onclick="fillExampleFull()">Example</button>
         </div>
+      </div>
 
-        <div class="card" style="margin-top:12px">
-          <h3 style="margin-top:0">Quick Links</h3>
-          <div class="small">
-            <div><a href="/api/state" target="_blank">/api/state</a> — raw JSON state</div>
-          </div>
+      <div class="card" style="margin-top:12px">
+        <h3>Send ROLLBACK</h3>
+        <select id="rollback-target">
+          <option value="LVA">LVA — Last Version Active</option>
+          <option value="LKG">LKG — Last Known Good</option>
+        </select>
+        <div class="row">
+          <button class="btn" id="btn-send-rollback" onclick="sendRollback()" disabled>
+            Send ROLLBACK
+          </button>
         </div>
       </div>
     </div>
+
+    <!-- RIGHT -->
+    <div>
+      <div class="card">
+        <h3>Activity / Response</h3>
+        <pre id="activity">Idle</pre>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h3>Diagnostics</h3>
+        <div class="row">
+          <button class="btn" onclick="pingAircraft()">Ping aircraft</button>
+          <button class="btn" onclick="fetchHistory()">Load history</button>
+        </div>
+        <div id="history-list" style="margin-top:12px"></div>
+      </div>
+    </div>
   </div>
+</div>
 
 <script>
+/* ---------- helpers ---------- */
 async function fetchJson(path, opts) {
-  try {
-    const r = await fetch(path, opts);
-    const text = await r.text();
-    try { return { ok: r.ok, status: r.status, json: JSON.parse(text), text }; }
-    catch (e) { return { ok: r.ok, status: r.status, json: null, text }; }
-  } catch (e) {
-    return { ok: false, error: String(e) };
-  }
+  const r = await fetch(path, opts);
+  const t = await r.text();
+  try { return { ok:r.ok, json:JSON.parse(t), status:r.status }; }
+  catch { return { ok:r.ok, text:t, status:r.status }; }
 }
 
-async function refreshState() {
-  const s = document.getElementById('state-summary');
-  if (!s) return;
-  s.textContent = 'Loading…';
-  const res = await fetchJson('/api/state');
-  if (res.ok && res.json) {
-    renderStateSummary(res.json);
-  } else {
-    s.textContent = `Error fetching state: ${res.status || ''}\n${res.error || res.text || ''}`;
-  }
-  // Also refresh the history list so UI is consistent
-  await fetchHistory();
-  // Update controls based on whether we have at least one FULL in history
-  updateControlsFromState(res.json);
+function parseAndPrettify(id) {
+  const el = document.getElementById(id);
+  const obj = JSON.parse(el.value);
+  el.value = JSON.stringify(obj, null, 2);
+  return obj;
 }
 
+function pretty(o) {
+  return JSON.stringify(o, null, 2);
+}
+
+/* ---------- examples ---------- */
+function fillExamplePatch() {
+  document.getElementById('patch-json').value = pretty({
+    version: 2,
+    prev: 1,
+    changes: { campaignA_priority: 85 }
+  });
+}
+
+function fillExampleFull() {
+  document.getElementById('full-json').value = pretty({
+    version: 1,
+    data: {
+      campaignA_priority: 70,
+      campaignB_routes: []
+    }
+  });
+}
+
+/* ---------- actions ---------- */
 async function sendPatch() {
-  const raw = document.getElementById('patch-json').value;
-  let obj;
-  try { obj = JSON.parse(raw); } catch (e) { alert('Invalid JSON'); return; }
-  const a = document.getElementById('activity');
-  a.textContent = 'Sending PATCH…';
-  const res = await fetchJson('/api/send_patch', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(obj) });
-  renderActivity(res);
-  await refreshState();
+  let obj; try { obj = parseAndPrettify('patch-json'); }
+  catch { return alert('Invalid JSON'); }
+  const res = await fetchJson('/api/send_patch', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(obj)
+  });
+  renderActivity(res); refreshState();
 }
 
 async function sendFull() {
-  const raw = document.getElementById('full-json').value;
-  let obj;
-  try { obj = JSON.parse(raw); } catch (e) { alert('Invalid JSON'); return; }
-  const a = document.getElementById('activity');
-  a.textContent = 'Sending FULL…';
-  const res = await fetchJson('/api/send_full', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(obj) });
-  renderActivity(res);
-  await refreshState();
+  let obj; try { obj = parseAndPrettify('full-json'); }
+  catch { return alert('Invalid JSON'); }
+  const res = await fetchJson('/api/send_full', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(obj)
+  });
+  renderActivity(res); refreshState();
 }
 
 async function sendRollback() {
   const target = document.getElementById('rollback-target').value;
-  const a = document.getElementById('activity');
-  a.textContent = 'Sending ROLLBACK…';
-  const res = await fetchJson('/api/send_rollback', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ target }) });
-  renderActivity(res);
-  await refreshState();
-}
-
-async function promote() {
-  const a = document.getElementById('activity');
-  a.textContent = 'Promoting Active → LKG…';
-  const res = await fetchJson('/api/promote', { method: 'POST' });
-  renderActivity(res);
-  await refreshState();
-}
-
-async function rollbackLocal() {
-  const a = document.getElementById('activity');
-  a.textContent = 'Rolling back locally to LVA…';
-  const res = await fetchJson('/api/rollback', { method: 'POST' });
-  renderActivity(res);
-  await refreshState();
+  const res = await fetchJson('/api/send_rollback', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ target })
+  });
+  renderActivity(res); refreshState();
 }
 
 async function pingAircraft() {
-  const a = document.getElementById('activity');
-  a.textContent = 'Pinging aircraft by sending empty HEALTH check to configured URL…';
-  const res = await fetchJson('/api/send_full', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ version: 999999, data: {} }) });
+  const res = await fetchJson('/api/ping');
   renderActivity(res);
 }
 
-/* Helpers to insert examples */
-function fillExamplePatch() {
-  document.getElementById('patch-json').value = JSON.stringify({ patch_id: 151, prev: 150, changes: { campaignA_priority: 85 } }, null, 2);
-}
-function fillExampleFull() {
-  document.getElementById('full-json').value = JSON.stringify({ version: 160, data: { campaignA_priority: 70, campaignB_routes: [] } }, null, 2);
-}
-function fillExampleRollback() {
-  document.getElementById('rollback-target').value = 'LVA';
-}
-
-/* initial load */
-/* Helpers to render activity/response in a human-friendly way */
-function _indentLines(s) {
-  return String(s).split('\n').map(l => '  ' + l).join('\n');
-}
-function _pretty(obj) {
-  try { return JSON.stringify(obj, null, 2); } catch (e) { return String(obj); }
-}
-function _prettyStructured(obj) {
-  if (!obj) return '(no content)';
-  let parts = [];
-  if (obj.local) {
-    parts.push('Local result:');
-    parts.push(_indentLines(_pretty(obj.local)));
-  }
-  if (obj.remote) {
-    parts.push('Remote result:');
-    parts.push(_indentLines(_pretty(obj.remote)));
-  }
-  // If no local/remote structure detected, just pretty print the whole object
-  if (parts.length === 0) return _pretty(obj);
-  return parts.join('\n');
-}
+/* ---------- rendering ---------- */
 function renderActivity(res) {
-  const a = document.getElementById('activity');
-  // Successful fetch-level response (HTTP-level ok)
-  if (res.ok) {
-    // If server returned parsed JSON, attempt to render structured output
-    if (res.json !== null && typeof res.json === 'object') {
-      a.textContent = _prettyStructured(res.json);
-    } else if (res.text) {
-      a.textContent = res.text;
-    } else {
-      a.textContent = '(success)';
-    }
-    return;
-  }
-
-  // Non-ok responses or network errors
-  if (res.json !== null && typeof res.json === 'object') {
-    // Server returned JSON error body — render structured view
-    a.textContent = 'Error response:\n' + _prettyStructured(res.json);
-  } else if (res.status || res.text) {
-    a.textContent = `Error ${res.status || ''}\n${res.text || ''}`.trim();
-  } else if (res.error) {
-    a.textContent = `Error: ${res.error}`;
-  } else {
-    a.textContent = 'Unknown error';
-  }
+  document.getElementById('activity').textContent =
+    res.json ? pretty(res.json) : res.text;
 }
 
-/* initial load helpers, state rendering, and history interactions */
-
-/* Render a human-friendly state summary from /api/state */
 function renderStateSummary(state) {
   const s = document.getElementById('state-summary');
-  if (!s) return;
-  try {
-    if (state && state.history && Array.isArray(state.history)) {
-      const total = state.history.length;
-      const lines = [];
-      lines.push(`Broadcast history: ${total} record${total === 1 ? '' : 's'}`);
-      if (total > 0) {
-        const latest = state.history[0];
-        lines.push(`Last sent: ${latest.type} (id ${latest.id}) at ${latest.timestamp}`);
-        if (latest.status) lines.push(`Last status: ${latest.status}`);
-      } else {
-        lines.push('No broadcast history yet.');
-      }
-      s.textContent = lines.join('\n');
-      return;
-    }
-
-    // Fallback: pretty-print entire JSON
-    s.textContent = JSON.stringify(state, null, 2);
-  } catch (e) {
-    s.textContent = 'Error rendering state summary';
+  if (!state.history?.length) {
+    s.textContent = 'No broadcasts yet.';
+    return;
   }
+  const h = state.history[0];
+  s.textContent =
+    `Broadcasts: ${state.history.length}\n` +
+    `Last: ${h.type} #${h.id}\nStatus: ${h.status}\nTime: ${h.timestamp}`;
 }
 
-/* Fetch and render the history list into the diagnostics pane */
+function updateControls(state) {
+  const hasFull = state.history?.some(h => h.type === 'FULL');
+  document.getElementById('btn-send-patch').disabled = !hasFull;
+  document.getElementById('btn-send-rollback').disabled = !hasFull;
+  document.getElementById('initial-warning').style.display =
+    hasFull ? 'none' : 'block';
+}
+
 async function fetchHistory() {
-  const container = document.getElementById('history-list');
-  if (!container) return;
-  container.textContent = 'Loading history…';
   const res = await fetchJson('/api/history');
-  if (!res.ok || !res.json) {
-    container.textContent = `Error loading history: ${res.status || ''} ${res.error || res.text || ''}`;
-    return;
-  }
-  const payload = res.json;
-  if (!payload.history || !Array.isArray(payload.history) || payload.history.length === 0) {
-    container.innerHTML = '<div class="small muted">No history available.</div>';
-    return;
-  }
-
-  // Build clickable rows (most recent first)
-  const rows = payload.history.map(h => {
-    const summary = document.createElement('div');
-    summary.style.padding = '6px 8px';
-    summary.style.borderBottom = '1px solid #eef2f7';
-    summary.style.cursor = 'pointer';
-    summary.style.fontFamily = 'var(--mono)';
-    summary.style.fontSize = '13px';
-    summary.innerText = `${h.timestamp} · [${h.type}] id=${h.id} · ${h.status}`;
-    summary.onclick = () => onHistoryClick(h.id);
-    return summary;
+  if (!res.json) return;
+  const list = document.getElementById('history-list');
+  list.innerHTML = '';
+  res.json.history.forEach(h => {
+    const d = document.createElement('div');
+    d.textContent = `${h.timestamp} · ${h.type} #${h.id} · ${h.status}`;
+    d.style.cursor = 'pointer';
+    d.onclick = () => {
+      document.getElementById('activity').textContent = pretty(h);
+    };
+    list.appendChild(d);
   });
-
-  container.innerHTML = '';
-  rows.forEach(r => container.appendChild(r));
-
-  // Update controls based on this history snapshot
-  updateControlsFromState(payload);
 }
 
-/* When a history row is clicked, fetch its details and show in the Activity panel */
-async function onHistoryClick(record_id) {
-  const a = document.getElementById('activity');
-  a.textContent = 'Loading record…';
-  // We already have the history endpoint; fetch and find the record client-side
-  const res = await fetchJson('/api/history');
-  if (!res.ok || !res.json) {
-    a.textContent = `Error loading history: ${res.status || ''} ${res.error || res.text || ''}`;
-    return;
-  }
-  const recs = res.json.history || [];
-  const rec = recs.find(r => r.id === record_id);
-  if (!rec) {
-    a.textContent = 'Record not found';
-    return;
-  }
-  // Build a user-friendly view
-  const parts = [];
-  parts.push(`Record ID: ${rec.id}`);
-  parts.push(`Type: ${rec.type}`);
-  parts.push(`Timestamp: ${rec.timestamp}`);
-  parts.push(`Status: ${rec.status}`);
-  parts.push('');
-  parts.push('Payload:');
-  parts.push(JSON.stringify(rec.payload, null, 2));
-  parts.push('');
-  parts.push('Remote response:');
-  parts.push(JSON.stringify(rec.remote, null, 2));
-  a.textContent = parts.join('\n');
+async function refreshState() {
+  const res = await fetchJson('/api/state');
+  if (!res.json) return;
+  renderStateSummary(res.json);
+  updateControls(res.json);
 }
 
-/* Enable/disable PATCH and ROLLBACK depending on whether a FULL has been sent */
-function updateControlsFromState(state) {
-  const btnPatch = document.getElementById('btn-send-patch');
-  const btnRollback = document.getElementById('btn-send-rollback');
-  const warning = document.getElementById('initial-warning');
-  if (!btnPatch || !btnRollback || !state || !state.history) return;
-
-  const hasFull = state.history.some(h => h.type === 'FULL');
-  if (hasFull) {
-    btnPatch.disabled = false;
-    btnRollback.disabled = false;
-    if (warning) warning.style.display = 'none';
-  } else {
-    btnPatch.disabled = true;
-    btnRollback.disabled = true;
-    if (warning) warning.style.display = 'block';
-  }
-}
-
-/* Send an initial ad-load FULL snapshot with version=1 and sample campaign data.
-   This attempts to send to aircraft and the broadcaster will keep the record in history. */
-async function sendInitialAdLoad() {
-  const sample = {
-    version: 1,
-    data: {
-      campaignA_priority: 85,
-      campaignB_routes: [
-        { origin: "SFO", destination: "NRT" },
-        { origin: "LAX", destination: "HND" }
-      ],
-      campaignC_frequency_cap: 10
-    }
-  };
-  const a = document.getElementById('activity');
-  a.textContent = 'Sending initial ad-load (v1)…';
-  const res = await fetchJson('/api/send_full', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(sample) });
-  renderActivity(res);
-  await refreshState();
-}
-
-/* initial UI population */
+fillExamplePatch();
+fillExampleFull();
 refreshState();
 </script>
 </body>
