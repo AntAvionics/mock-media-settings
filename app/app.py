@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("mock_media_settings.broadcaster")
 
 load_dotenv()
-DEFAULT_AIRCRAFT_URL = os.getenv("AIRCRAFT_URL", "http://localhost:8000/receive")
+DEFAULT_AIRCRAFT_URL = os.getenv("AIRCRAFT_URL", "http://localhost:8000")
 DEFAULT_REQUEST_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "5.0"))
 
 @dataclass
@@ -103,7 +103,7 @@ def post_to_aircraft(payload: Dict[str, Any]) -> Dict[str, Any]:
         }
       }
     """
-    url = app.config["AIRCRAFT_URL"]
+    url = f"{app.config["AIRCRAFT_URL"]}/receive"
     timeout = app.config["REQUEST_TIMEOUT"]
     try:
         logger.info("POST -> aircraft %s payload type=%s", url, payload.get("type"))
@@ -235,7 +235,7 @@ def api_ping():
     """
     Ping the aircraft via GET and return its reported status/version.
     """
-    url = app.config["AIRCRAFT_URL"]
+    url = f"{app.config["AIRCRAFT_URL"]}/ping"
     timeout = app.config["REQUEST_TIMEOUT"]
 
     try:
