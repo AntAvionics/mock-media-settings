@@ -79,6 +79,7 @@ class BroadcastStore:
 app = Flask(
     __name__,
     template_folder=os.path.join(os.path.dirname(__file__), "..", "templates"),
+    static_folder=os.path.join(os.path.dirname(__file__), "..", "static"),
 )
 
 app.config.setdefault("AIRCRAFT_URL", DEFAULT_AIRCRAFT_URL)
