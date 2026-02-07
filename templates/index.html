@@ -56,7 +56,7 @@
         <div class="card" style="margin-top:12px">
           <h3 style="margin-top:0">Send PATCH</h3>
           <label>Patch JSON (example)
-            <textarea id="patch-json" rows="6">{ "patch_id": 151, "prev": 150, "changes": { "campaignA_priority": 85 } }</textarea>
+            <textarea id="patch-json" rows="6"></textarea>
           </label>
           <div class="row">
             <button class="btn" id="btn-send-patch" onclick="sendPatch()" disabled>Send PATCH</button>
@@ -68,7 +68,7 @@
         <div class="card" style="margin-top:12px">
           <h3 style="margin-top:0">Send FULL snapshot</h3>
           <label>Full Snapshot JSON
-            <textarea id="full-json" rows="6">{ "version": 160, "data": { "campaignA_priority": 70, "campaignB_routes": [] } }</textarea>
+            <textarea id="full-json" rows="6"></textarea>
           </label>
           <div class="row">
             <button class="btn" onclick="sendFull()">Send FULL</button>
@@ -122,6 +122,8 @@
   </div>
 
 <script>
+window.onload(fillExamplePatch())
+window.onload(fillExampleFull())
 async function fetchJson(path, opts) {
   try {
     const r = await fetch(path, opts);
@@ -204,11 +206,15 @@ async function pingAircraft() {
 }
 
 /* Helpers to insert examples */
-function fillExamplePatch() {
-  document.getElementById('patch-json').value = JSON.stringify({ patch_id: 151, prev: 150, changes: { campaignA_priority: 85 } }, null, 2);
+async function fillExamplePatch() {
+  const response = await fetch('/static/resource/examplePatch.json');
+  const data = await response.json();
+  document.getElementById('patch-json').value = JSON.stringify(data, null, 2);
 }
-function fillExampleFull() {
-  document.getElementById('full-json').value = JSON.stringify({ version: 160, data: { campaignA_priority: 70, campaignB_routes: [] } }, null, 2);
+async function fillExampleFull() {
+  const response = await fetch('static/resource/exampleFull.json');
+  const data = await response.json();
+  document.getElementById('full-json').value = JSON.stringify(data, null, 2);
 }
 function fillExampleRollback() {
   document.getElementById('rollback-target').value = 'LVA';

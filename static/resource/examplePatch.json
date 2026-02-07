@@ -1,0 +1,19 @@
+{
+    "patch_id": 151,
+    "prev": 150,
+    "changes": 
+    {
+        "campaignA":
+        {
+            "priority": 70,
+            "targeting":
+            {
+                "routes": [{ "origin": "LAX", "destination": "NRT" }, { "origin": "SFO", "destination": "HND" }],
+                "flight_duration_min": 360,
+                "flight_duration_max": 900,
+                "time_of_day": ["evening", "red_eye"],
+                "audience_tags": ["business", "economy"]
+            }
+        }
+    }
+}

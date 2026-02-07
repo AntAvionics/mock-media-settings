@@ -1,0 +1,30 @@
+{
+    "version":150,
+    "data":
+    {
+        "campaignA":
+        {
+            "priority": 80,
+            "targeting":
+            {
+                "routes": [{ "origin": "LAX", "destination": "NRT" }, { "origin": "SFO", "destination": "HND" }],
+                "flight_duration_min": 360,
+                "flight_duration_max": 900,
+                "time_of_day": ["evening", "red_eye"],
+                "audience_tags": ["business", "economy"]
+            }
+        },
+        "campaignB":
+        {
+            "priority": 60,
+            "targeting":
+            {
+                "routes": [{ "origin": "LAX", "destination": "NRT" }],
+                "flight_duration_min": 100,
+                "flight_duration_max": 200,
+                "time_of_day": ["evening"],
+                "audience_tags": ["first_class"]
+            }
+        }
+    }
+}
