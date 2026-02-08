@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("mock_media_settings.broadcaster")
 
 load_dotenv()
-DEFAULT_AIRCRAFT_URL = os.getenv("AIRCRAFT_URL", "http://localhost:8000")
+DEFAULT_AIRCRAFT_URL = os.getenv("AIRCRAFT_URL", "http://localhost:9000")
 DEFAULT_REQUEST_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "5.0"))
 
 @dataclass
@@ -270,7 +270,7 @@ def api_ping():
 
 if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "5000"))
+    port = int(os.getenv("PORT", "9001"))
     debug = os.getenv("FLASK_DEBUG", "1") == "1"
     logger.info("Starting broadcaster on %s:%s -> aircraft=%s", host, port, app.config["AIRCRAFT_URL"])
     app.run(host=host, port=port, debug=debug)
