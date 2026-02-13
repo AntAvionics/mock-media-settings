@@ -123,6 +123,11 @@
     <!-- RIGHT -->
     <div>
       <div class="card">
+        <h3>Current State</h3>
+        <pre id="currentState">None</pre>
+      </div>
+
+      <div class="card">
         <h3>Activity / Response</h3>
         <pre id="activity">Idle</pre>
       </div>
@@ -190,6 +195,7 @@ async function sendPatch() {
     body:JSON.stringify(obj)
   });
   renderActivity(res); refreshState();
+  renderAircraftState();
 }
 
 async function sendFull() {
@@ -200,6 +206,7 @@ async function sendFull() {
     body:JSON.stringify(obj)
   });
   renderActivity(res); refreshState();
+  renderAircraftState();
 }
 
 async function sendRollback() {
@@ -209,6 +216,7 @@ async function sendRollback() {
     body:JSON.stringify({ target })
   });
   renderActivity(res); refreshState();
+  renderAircraftState();
 }
 
 /* Helpers to insert examples */
@@ -228,12 +236,19 @@ function fillExampleRollback() {
 async function pingAircraft() {
   const res = await fetchJson('/api/ping');
   renderActivity(res);
+  renderAircraftState();
 }
 
 /* ---------- rendering ---------- */
 function renderActivity(res) {
   document.getElementById('activity').textContent =
     res.json ? pretty(res.json) : res.text;
+}
+
+async function renderAircraftState() {
+  const res = await fetchJson('/api/aircraft_state');
+  if (!res.json) return;
+  document.getElementById('currentState').textContent = pretty(res.json["active"]);
 }
 
 function renderStateSummary(state) {

@@ -267,6 +267,23 @@ def api_ping():
             "note": "Unable to reach aircraft"
         }), 502
 
+@app.route("/api/aircraft_state", methods=["GET"])
+def api_aircraft_state():
+    """Fetch the aircraft configuration state from the rollback service."""
+    url = f"{app.config['AIRCRAFT_URL']}/aircraft_state"
+    timeout = app.config["REQUEST_TIMEOUT"]
+    
+    try:
+        resp = requests.get(url, timeout=timeout)
+        resp.raise_for_status()
+        return jsonify(resp.json()), 200
+    except requests.RequestException as e:
+        logger.exception("Failed to fetch aircraft state")
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+            "note": "Unable to reach aircraft state endpoint"
+        }), 502
 
 if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")
