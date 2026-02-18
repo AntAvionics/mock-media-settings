@@ -138,6 +138,12 @@ def index():
     """Render the dashboard UI."""
     return render_template("index.html", aircraft_url=app.config["AIRCRAFT_URL"])
 
+# Mock User Dashboard
+@app.route('/user')
+def about():
+    """Render a mock user dashboard (for demo purposes)."""
+    return render_template('user.html')
+
 
 @app.route("/api/state", methods=["GET"])
 def api_state():
