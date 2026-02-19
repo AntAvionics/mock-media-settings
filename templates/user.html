@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Ad Manager — Dashboard</title>
+    <style>
+      :root {
+        --bg: #f6f8fa;
+        --card: #fff;
+        --muted: #6b7280;
+        --accent: #2563eb;
+        --mono:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono",
+          "Courier New", monospace;
+      }
+      body {
+        margin: 0;
+        padding: 20px;
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Arial;
+        background: var(--bg);
+        color: #111827;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid #e6edf3;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 1px 0 rgba(16, 24, 40, 0.02);
+      }
+      .card h3 {
+        margin: 0 0 12px 0;
+        font-size: 1rem;
+      }
+
+      .full-width {
+        grid-column: 1 / -1;
+      }
+
+      .ads-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .ads-table th {
+        text-align: left;
+        padding: 8px;
+        border-bottom: 2px solid #e6edf3;
+        background: #f9fafb;
+        font-weight: 600;
+      }
+      .ads-table td {
+        padding: 12px 8px;
+        border-bottom: 1px solid #e6edf3;
+      }
+      .ads-table tr:hover {
+        background: #f9fafb;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+      .badge.active {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .badge.paused {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .badge.draft {
+        background: #f3e8ff;
+        color: #6b21a8;
+      }
+
+      label {
+        display: block;
+        margin-top: 8px;
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+      textarea,
+      input,
+      select {
+        width: 100%;
+        box-sizing: border-box;
+        font-family: inherit;
+        font-size: 13px;
+        padding: 8px;
+        border-radius: 6px;
+        border: 1px solid #e6edf3;
+        margin-top: 4px;
+      }
+      textarea {
+        font-family: var(--mono);
+      }
+
+      .btn {
+        background: var(--accent);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: none;
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .btn:hover {
+        background: #1d4ed8;
+      }
+      .btn.secondary {
+        background: #111827;
+      }
+      .btn.secondary:hover {
+        background: #374151;
+      }
+      .btn.small {
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+      .btn[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .row {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .small {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .metric {
+        text-align: center;
+      }
+      .metric-value {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--accent);
+      }
+      .metric-label {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+
+      .form-group {
+        margin-bottom: 12px;
+      }
+      .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+      }
+      .toggle input {
+        width: 40px;
+        height: 20px;
+        cursor: pointer;
+      }
+
+      .empty {
+        text-align: center;
+        padding: 24px;
+        color: var(--muted);
+      }
+      .empty-icon {
+        font-size: 32px;
+        margin-bottom: 8px;
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+      }
+      .modal.active {
+        display: flex;
+      }
+      .modal-content {
+        background: var(--card);
+        border-radius: 8px;
+        padding: 24px;
+        max-width: 500px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .modal-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+      }
+      .close-btn {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: var(--muted);
+      }
+
+      .flights-selector {
+        border: 1px solid #e6edf3;
+        border-radius: 6px;
+        padding: 8px;
+        max-height: 150px;
+        overflow-y: auto;
+        background: #f9fafb;
+      }
+      .flights-selector label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 4px 0;
+        margin-top: 0;
+        font-weight: 400;
+      }
+      .flights-selector input[type="checkbox"] {
+        width: auto;
+        margin: 0;
+      }
+      .flights-group {
+        margin-bottom: 8px;
+      }
+      .flights-group-title {
+        font-weight: 600;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 4px;
+        margin-top: 8px;
+      }
+      .flights-group-title:first-child {
+        margin-top: 0;
+      }
+
+      .flights-dropdown {
+        cursor: pointer;
+        padding: 4px 8px;
+        background: #f3e8ff;
+        border-radius: 4px;
+        border: 1px solid #e6edf3;
+        font-size: 12px;
+        color: #6b21a8;
+        font-weight: 600;
+      }
+      .flights-dropdown:hover {
+        background: #f0e0ff;
+      }
+      .flights-list {
+        margin-top: 8px;
+        padding: 8px;
+        background: #f9fafb;
+        border-radius: 4px;
+        border: 1px solid #e6edf3;
+        font-size: 12px;
+      }
+      .flights-list div {
+        padding: 4px 0;
+        color: var(--muted);
+      }
+
+      .fleet-container {
+        margin-bottom: 12px;
+        border: 1px solid #e6edf3;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .fleet-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+        background: #f3e8ff;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 12px;
+        color: #6b21a8;
+        user-select: none;
+      }
+      .fleet-header:hover {
+        background: #f0e0ff;
+      }
+      .fleet-toggle {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        text-align: center;
+        font-size: 10px;
+        line-height: 16px;
+      }
+      .fleet-flights {
+        padding: 8px;
+        background: #fafbfc;
+        border-top: 1px solid #e6edf3;
+        display: none;
+      }
+      .fleet-flights.expanded {
+        display: block;
+      }
+      .fleet-flights label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 4px 0;
+        margin-top: 0;
+        font-weight: 400;
+      }
+      .fleet-flights input[type="checkbox"] {
+        width: auto;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div>
+          <h1>Ad Manager</h1>
+          <div class="sub">Manage and monitor your advertisement campaigns</div>
+        </div>
+        <button class="btn" onclick="openAddAdModal()">+ New Ad</button>
+      </header>
+
+      <!-- METRICS ROW -->
+      <div
+        class="grid"
+        style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px"
+      >
+        <div class="card">
+          <div class="metric">
+            <div class="metric-value" id="total-ads">0</div>
+            <div class="metric-label">Total Ads</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="metric">
+            <div class="metric-value" id="active-ads">0</div>
+            <div class="metric-label">Active</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="metric">
+            <div class="metric-value" id="total-impressions">0</div>
+            <div class="metric-label">Impressions</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="metric">
+            <div class="metric-value" id="total-clicks">0</div>
+            <div class="metric-label">Clicks</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADS TABLE -->
+      <div class="card full-width">
+        <h3>Advertisement Campaigns</h3>
+        <div id="ads-container">
+          <div class="empty">
+            <div class="empty-icon">📢</div>
+            <div>No advertisements yet. Create one to get started.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD/EDIT AD MODAL -->
+    <div id="adModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-title">New Advertisement</h2>
+          <button class="close-btn" onclick="closeAddAdModal()">×</button>
+        </div>
+
+        <div class="form-group">
+          <label for="ad-name">Campaign Name</label>
+          <input
+            type="text"
+            id="ad-name"
+            placeholder="e.g., Summer Promo 2026"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="ad-title">Ad Title</label>
+          <input
+            type="text"
+            id="ad-title"
+            placeholder="e.g., Get 50% Off This Season"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="ad-description">Description</label>
+          <textarea
+            id="ad-description"
+            rows="4"
+            placeholder="Ad description or content..."
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="ad-impression-cap">Impression Cap</label>
+          <input
+            type="number"
+            id="ad-impression-cap"
+            placeholder="e.g., 10000"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="ad-target">Target Audience</label>
+          <input
+            type="text"
+            id="ad-target"
+            placeholder="e.g., Users aged 18-35"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="ad-budget">Budget ($)</label>
+          <input
+            type="number"
+            id="ad-budget"
+            placeholder="1000"
+            min="0"
+            step="100"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="ad-start-date">Start Date</label>
+          <input type="date" id="ad-start-date" />
+        </div>
+
+        <div class="form-group">
+          <label for="ad-end-date">End Date</label>
+          <input type="date" id="ad-end-date" />
+        </div>
+
+        <div class="form-group">
+          <label>Flights & Fleets</label>
+          <div class="flights-selector" id="flights-selector"></div>
+          <div class="small" style="margin-top: 4px">
+            Select one or more flights or entire fleets
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="ad-status">Status</label>
+          <select id="ad-status">
+            <option value="draft">Draft</option>
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+          </select>
+        </div>
+
+        <div class="row" style="margin-top: 20px">
+          <button class="btn" onclick="saveAd()">Save Ad</button>
+          <button class="btn secondary" onclick="closeAddAdModal()">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // FLIGHTS & FLEETS DATA
+      const fleets = {
+        "Fleet A": {
+          type: "fleet",
+          flights: ["AA101", "AA102", "AA103", "AA104"],
+        },
+        "Fleet B": { type: "fleet", flights: ["BA201", "BA202", "BA203"] },
+      };
+
+      // DATA STORAGE
+      let ads = JSON.parse(localStorage.getItem("ads")) || [];
+      let editingId = null;
+      let selectedFlights = [];
+
+      // MODAL FUNCTIONS
+      function renderFlightSelector() {
+        const container = document.getElementById("flights-selector");
+        let html = "";
+
+        // Fleets section with dropdowns
+        for (const [name, data] of Object.entries(fleets)) {
+          if (data.type === "fleet") {
+            const isExpanded =
+              document
+                .getElementById(`fleet-${name}`)
+                ?.classList.contains("expanded") || false;
+            const expandIcon = isExpanded ? "▼" : "▶";
+            html += `
+              <div class="fleet-container">
+                <div class="fleet-header" onclick="toggleFleetExpanded('${name}')">
+                  <span class="fleet-toggle">${expandIcon}</span>
+                  <span>${name}</span>
+                </div>
+                <div class="fleet-flights ${isExpanded ? "expanded" : ""}" id="fleet-${name}">
+            `;
+            for (const flight of data.flights) {
+              const checked = selectedFlights.includes(flight) ? "checked" : "";
+              html += `
+                <label>
+                  <input type="checkbox" value="${flight}" ${checked} onchange="toggleFlight('${flight}')" />
+                  ${flight}
+                </label>
+              `;
+            }
+            html += `
+                </div>
+              </div>
+            `;
+          }
+        }
+
+        // Individual flights section
+        const individualFlights = [];
+        for (const [key, data] of Object.entries(fleets)) {
+          if (data.type === "group") {
+            individualFlights.push(...data.flights);
+          }
+        }
+        if (individualFlights.length > 0) {
+          html +=
+            '<div class="fleet-container"><div class="fleet-header" onclick="toggleFleetExpanded(\'individual\')" style="background: #f0fdf4; color: #166534;"><span class="fleet-toggle" id="individual-toggle">▶</span><span>Individual Flights</span></div><div class="fleet-flights" id="fleet-individual">';
+          for (const flight of individualFlights) {
+            const checked = selectedFlights.includes(flight) ? "checked" : "";
+            html += `
+              <label>
+                <input type="checkbox" value="${flight}" ${checked} onchange="toggleFlight('${flight}')" />
+                ${flight}
+              </label>
+            `;
+          }
+          html += "</div></div>";
+        }
+
+        container.innerHTML = html;
+      }
+
+      function toggleFleetExpanded(fleetName) {
+        const container = document.getElementById(`fleet-${fleetName}`);
+        const toggle = document.getElementById(`${fleetName}-toggle`);
+        if (container) {
+          container.classList.toggle("expanded");
+          toggle.textContent = container.classList.contains("expanded")
+            ? "▼"
+            : "▶";
+        }
+      }
+
+      function toggleFlight(flightName) {
+        const idx = selectedFlights.indexOf(flightName);
+        if (idx > -1) {
+          selectedFlights.splice(idx, 1);
+        } else {
+          selectedFlights.push(flightName);
+        }
+      }
+
+      // MODAL FUNCTIONS
+      function openAddAdModal() {
+        editingId = null;
+        selectedFlights = [];
+        document.getElementById("modal-title").textContent =
+          "New Advertisement";
+        document.getElementById("ad-name").value = "";
+        document.getElementById("ad-title").value = "";
+        document.getElementById("ad-description").value = "";
+        document.getElementById("ad-target").value = "";
+        document.getElementById("ad-budget").value = "";
+        document.getElementById("ad-impression-cap").value = 0;
+        document.getElementById("ad-start-date").value = "";
+        document.getElementById("ad-end-date").value = "";
+        document.getElementById("ad-status").value = "draft";
+        renderFlightSelector();
+        document.getElementById("adModal").classList.add("active");
+      }
+
+      function openEditAdModal(id) {
+        const ad = ads.find((a) => a.id === id);
+        if (!ad) return;
+
+        editingId = id;
+        selectedFlights = [...(ad.flights || [])];
+        document.getElementById("modal-title").textContent =
+          "Edit Advertisement";
+        document.getElementById("ad-name").value = ad.name;
+        document.getElementById("ad-title").value = ad.title;
+        document.getElementById("ad-description").value = ad.description;
+        document.getElementById("ad-target").value = ad.target;
+        document.getElementById("ad-budget").value = ad.budget;
+        document.getElementById("ad-start-date").value = ad.startDate || "";
+        document.getElementById("ad-end-date").value = ad.endDate || "";
+        document.getElementById("ad-status").value = ad.status;
+        renderFlightSelector();
+        document.getElementById("adModal").classList.add("active");
+      }
+
+      function closeAddAdModal() {
+        document.getElementById("adModal").classList.remove("active");
+      }
+
+      function saveAd() {
+        const name = document.getElementById("ad-name").value.trim();
+        const title = document.getElementById("ad-title").value.trim();
+        const description = document
+          .getElementById("ad-description")
+          .value.trim();
+        const target = document.getElementById("ad-target").value.trim();
+        const budget =
+          parseFloat(document.getElementById("ad-budget").value) || 0;
+        const startDate = document.getElementById("ad-start-date").value;
+        const endDate = document.getElementById("ad-end-date").value;
+        const status = document.getElementById("ad-status").value;
+
+        if (!name || !title) {
+          alert("Please fill in all required fields");
+          return;
+        }
+
+        if (editingId) {
+          const ad = ads.find((a) => a.id === editingId);
+          if (ad) {
+            ad.name = name;
+            ad.title = title;
+            ad.description = description;
+            ad.target = target;
+            ad.budget = budget;
+            ad.startDate = startDate;
+            ad.endDate = endDate;
+            ad.status = status;
+            ad.flights = selectedFlights;
+          }
+        } else {
+          ads.push({
+            id: Date.now(),
+            name,
+            title,
+            description,
+            target,
+            budget,
+            startDate,
+            endDate,
+            status,
+            flights: selectedFlights,
+            impressions: 0,
+            clicks: 0,
+            created: new Date().toLocaleDateString(),
+          });
+        }
+
+        saveData();
+        renderAds();
+        closeAddAdModal();
+      }
+
+      function deleteAd(id) {
+        if (confirm("Are you sure you want to delete this ad?")) {
+          ads = ads.filter((a) => a.id !== id);
+          saveData();
+          renderAds();
+        }
+      }
+
+      function toggleAdStatus(id) {
+        const ad = ads.find((a) => a.id === id);
+        if (ad) {
+          ad.status = ad.status === "active" ? "paused" : "active";
+          saveData();
+          renderAds();
+        }
+      }
+
+      // DATA FUNCTIONS
+      function saveData() {
+        localStorage.setItem("ads", JSON.stringify(ads));
+      }
+
+      function updateMetrics() {
+        document.getElementById("total-ads").textContent = ads.length;
+        document.getElementById("active-ads").textContent = ads.filter(
+          (a) => a.status === "active",
+        ).length;
+        document.getElementById("total-impressions").textContent = ads
+          .reduce((sum, a) => sum + a.impressions, 0)
+          .toLocaleString();
+        document.getElementById("total-clicks").textContent = ads
+          .reduce((sum, a) => sum + a.clicks, 0)
+          .toLocaleString();
+      }
+
+      function renderAds() {
+        const container = document.getElementById("ads-container");
+
+        if (ads.length === 0) {
+          container.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">📢</div>
+        <div>No advertisements yet. Create one to get started.</div>
+      </div>
+    `;
+          updateMetrics();
+          return;
+        }
+
+        let html = `
+    <table class="ads-table">
+      <thead>
+        <tr>
+          <th>Campaign</th>
+          <th>Title</th>
+          <th>Flights</th>
+          <th>Budget</th>
+          <th>Impressions</th>
+          <th>Clicks</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+        ads.forEach((ad) => {
+          const badgeClass =
+            ad.status === "active"
+              ? "active"
+              : ad.status === "paused"
+                ? "paused"
+                : "draft";
+          const flightCount = (ad.flights || []).length;
+          const flightText =
+            flightCount === 0 ? "No flights" : `${flightCount} selected`;
+
+          html += `
+      <tr>
+        <td><strong>${ad.name}</strong></td>
+        <td>${ad.title}</td>
+        <td>
+          <button class="flights-dropdown" onclick="toggleFlightDetails(${ad.id})" id="flights-btn-${ad.id}">
+            ${flightText}
+          </button>
+          <div id="flights-detail-${ad.id}" style="display:none;">
+            <div class="flights-list" id="flights-list-${ad.id}"></div>
+          </div>
+        </td>
+        <td>$${ad.budget.toLocaleString()}</td>
+        <td>${ad.impressions.toLocaleString()}</td>
+        <td>${ad.clicks.toLocaleString()}</td>
+        <td><span class="badge ${badgeClass}">${ad.status.toUpperCase()}</span></td>
+        <td>
+          <div class="row">
+            <button class="btn small secondary" onclick="openEditAdModal(${ad.id})">Edit</button>
+            <button class="btn small" style="background:#dc2626;" onclick="deleteAd(${ad.id})">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `;
+        });
+
+        html += `
+      </tbody>
+    </table>
+  `;
+
+        container.innerHTML = html;
+        updateMetrics();
+      }
+
+      function toggleFlightDetails(adId) {
+        const detail = document.getElementById(`flights-detail-${adId}`);
+        const btn = document.getElementById(`flights-btn-${adId}`);
+        const list = document.getElementById(`flights-list-${adId}`);
+
+        if (detail.style.display === "none") {
+          const ad = ads.find((a) => a.id === adId);
+          const flights = ad.flights || [];
+          if (flights.length > 0) {
+            list.innerHTML = flights.map((f) => `<div>✈ ${f}</div>`).join("");
+          } else {
+            list.innerHTML =
+              '<div style="color: var(--muted);">No flights assigned</div>';
+          }
+          detail.style.display = "block";
+          btn.style.background = "#e0d4ff";
+        } else {
+          detail.style.display = "none";
+          btn.style.background = "#f3e8ff";
+        }
+      }
+
+      // INIT
+      window.addEventListener("click", function (e) {
+        const modal = document.getElementById("adModal");
+        if (e.target === modal) {
+          closeAddAdModal();
+        }
+      });
+
+      renderFlightSelector();
+      renderAds();
+    </script>
+  </body>
+</html>

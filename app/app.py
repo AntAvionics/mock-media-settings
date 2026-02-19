@@ -58,6 +58,12 @@ def _aircraft_url(aircraft_id: Optional[str], path: str) -> str:
         raise ValueError("No aircraft_id provided and DEFAULT_AIRCRAFT_ID is not configured")
     return f"{base}/aircraft/{aid}/{path.lstrip('/')}"
 
+# Mock User Dashboard
+@app.route('/user')
+def about():
+    """Render a mock user dashboard (for demo purposes)."""
+    return render_template('user.html')
+
 
 def _headend_url(path: str) -> str:
     """
