@@ -1,80 +1,25 @@
 import os
 import logging
-import threading
 from copy import deepcopy
-from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
-import requests
 from flask import Flask, jsonify, request, render_template
+import requests
+
+from app.broadcast.models import BroadcastStore
+from app.broadcast.http_client import HttpClient
+from app.broadcast import routes as broadcast_routes
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("mock_media_settings.broadcaster")
 
 load_dotenv()
-DEFAULT_AIRCRAFT_URL = os.getenv("AIRCRAFT_URL", "http://localhost:9000")
+
+DEFAULT_AIRCRAFT_BASE_URL = os.getenv("AIRCRAFT_BASE_URL", "http://localhost:9000")
 DEFAULT_REQUEST_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "5.0"))
-
-@dataclass
-class HistoryEntry:
-    id: int
-    type: str
-    payload: Dict[str, Any]
-    timestamp: str
-    status: str = "pending"  # pending | ok | failed
-    remote: Dict[str, Any] = field(default_factory=dict)
-
-# In-memory history, simulates as if there was a DB
-class BroadcastStore:
-    def __init__(self) -> None:
-        self.lock = threading.RLock()
-        self.history: List[HistoryEntry] = []
-        self.next_id = 1
-
-    def add_entry(self, msg_type: str, payload: Dict[str, Any]) -> HistoryEntry:
-        with self.lock:
-            entry = HistoryEntry(
-                id=self.next_id,
-                type=msg_type,
-                payload=deepcopy(payload),
-                timestamp=datetime.utcnow().isoformat() + "Z",
-            )
-            self.next_id += 1
-            self.history.insert(0, entry)
-            logger.info("History add: id=%s type=%s", entry.id, entry.type)
-            return entry
-
-    def update_entry(self, entry_id: int, status: str, remote: Dict[str, Any]) -> Optional[HistoryEntry]:
-        with self.lock:
-            for e in self.history:
-                if e.id == entry_id:
-                    e.status = status
-                    e.remote = deepcopy(remote)
-                    # annotate remote with update time so operators can see when we recorded the reply
-                    e.remote.setdefault("_updated_at", datetime.utcnow().isoformat() + "Z")
-                    logger.info("History update: id=%s status=%s", e.id, e.status)
-                    return e
-            logger.warning("History update: id=%s not found", entry_id)
-            return None
-
-    def get_state(self) -> Dict[str, Any]:
-        with self.lock:
-            return {
-                "history": [
-                    {
-                        "id": e.id,
-                        "type": e.type,
-                        "timestamp": e.timestamp,
-                        "status": e.status,
-                        "payload": deepcopy(e.payload),
-                        "remote": deepcopy(e.remote),
-                    }
-                    for e in self.history
-                ]
-            }
-
+DEFAULT_AIRCRAFT_ID = os.getenv("DEFAULT_AIRCRAFT_ID", "A1")
 
 app = Flask(
     __name__,
@@ -82,61 +27,36 @@ app = Flask(
     static_folder=os.path.join(os.path.dirname(__file__), "..", "static"),
 )
 
-app.config.setdefault("AIRCRAFT_URL", DEFAULT_AIRCRAFT_URL)
+# Base URL of the multi-aircraft rollback service (no trailing slash)
+app.config.setdefault("AIRCRAFT_BASE_URL", DEFAULT_AIRCRAFT_BASE_URL)
 app.config.setdefault("REQUEST_TIMEOUT", DEFAULT_REQUEST_TIMEOUT)
+app.config.setdefault("DEFAULT_AIRCRAFT_ID", DEFAULT_AIRCRAFT_ID)
 
 store = BroadcastStore()
 app.config["STORE"] = store
 
-def post_to_aircraft(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Post payload to the configured aircraft endpoint and return a structured result.
+http_client = HttpClient(
+    base_url=app.config["AIRCRAFT_BASE_URL"],
+    timeout=app.config["REQUEST_TIMEOUT"],
+    default_aircraft_id=app.config.get("DEFAULT_AIRCRAFT_ID"),
+)
 
-    Returns a dict:
-      {
-        "outbound": <the payload that was sent>,
-        "result": {
-          "ok": bool,                  # True for 2xx
-          "status_code": int | None,
-          "response": <parsed json or text or None>,
-          "error": <string on exception> (optional),
-          "elapsed_ms": <float>        # optional approximate round-trip ms
-        }
-      }
-    """
-    url = f"{app.config["AIRCRAFT_URL"]}/receive"
-    timeout = app.config["REQUEST_TIMEOUT"]
-    try:
-        logger.info("POST -> aircraft %s payload type=%s", url, payload.get("type"))
-        started = datetime.utcnow()
-        resp = requests.post(url, json=payload, timeout=timeout)
-        elapsed = (datetime.utcnow() - started).total_seconds() * 1000.0
-        try:
-            body = resp.json()
-        except Exception:
-            body = resp.text
-        ok = 200 <= resp.status_code < 300
-        result = {"ok": ok, "status_code": resp.status_code, "response": body, "elapsed_ms": round(elapsed, 1)}
-        logger.info("Aircraft responded: ok=%s status=%s elapsed_ms=%.1f", result["ok"], resp.status_code, result["elapsed_ms"])
-        return {"outbound": payload, "result": result}
-    except requests.RequestException as e:
-        logger.exception("Error posting to aircraft: %s", e)
-        return {
-            "outbound": payload,
-            "result": {
-                "ok": False,
-                "status_code": None,
-                "response": None,
-                "error": str(e),
-                "note": "Connection to aircraft failed",
-            },
-        }
+# ---------------------------------------------------------------------------
+# Legacy-compatible helpers that wrap HttpClient
+# ---------------------------------------------------------------------------
 
-# --- Routes ---------------------------------------------------------------
-@app.route("/")
-def index():
-    """Render the dashboard UI."""
-    return render_template("index.html", aircraft_url=app.config["AIRCRAFT_URL"])
+
+def _aircraft_url(aircraft_id: Optional[str], path: str) -> str:
+    """
+    Backwards-compatible URL builder.
+
+    Retained for clarity and to keep behaviour identical to the original module.
+    """
+    base = app.config["AIRCRAFT_BASE_URL"].rstrip("/")
+    aid = aircraft_id or app.config.get("DEFAULT_AIRCRAFT_ID")
+    if aid is None:
+        raise ValueError("No aircraft_id provided and DEFAULT_AIRCRAFT_ID is not configured")
+    return f"{base}/aircraft/{aid}/{path.lstrip('/')}"
 
 # Mock User Dashboard
 @app.route('/user')
@@ -145,19 +65,51 @@ def about():
     return render_template('user.html')
 
 
-@app.route("/api/state", methods=["GET"])
-def api_state():
-    """Return the broadcast history (no local configuration/state is stored here)."""
-    return jsonify(store.get_state())
+def _headend_url(path: str) -> str:
+    """
+    Backwards-compatible URL builder for headend-global endpoints.
+    """
+    base = app.config["AIRCRAFT_BASE_URL"].rstrip("/")
+    return f"{base}/{path.lstrip('/')}"
 
 
-@app.route("/api/history", methods=["GET"])
-def api_history():
-    """Alias for /api/state."""
-    return jsonify(store.get_state())
+def post_to_aircraft(
+    aircraft_id: str,
+    payload: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Compatibility wrapper around HttpClient.post_to_aircraft so existing
+    broadcast logic can remain unchanged.
+    """
+    return http_client.post_to_aircraft(aircraft_id, payload)
 
 
-def _accept_json_request():
+def get_from_aircraft(aircraft_id: str, path: str) -> Dict[str, Any]:
+    """
+    Compatibility wrapper mirroring original get_from_aircraft behaviour.
+    """
+    return http_client.get_from_aircraft(aircraft_id, path)
+
+
+def get_aircraft_list() -> Dict[str, Any]:
+    """
+    Compatibility wrapper for listing aircraft via the headend.
+    """
+    return http_client.get_aircraft_list()
+
+
+def get_headend_ping() -> Dict[str, Any]:
+    """
+    Compatibility wrapper for pinging the headend.
+    """
+    return http_client.get_headend_ping()
+
+
+# ---------------------------------------------------------------------------
+# JSON / aircraft selection helpers
+# ---------------------------------------------------------------------------
+
+def _accept_json_request() -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
     try:
         payload = request.get_json(force=True)
         if not isinstance(payload, dict):
@@ -167,133 +119,146 @@ def _accept_json_request():
         return None, str(e)
 
 
-@app.route("/api/send_patch", methods=["POST"])
-def api_send_patch():
+def _extract_aircraft_ids(body: Dict[str, Any]) -> List[str]:
     """
-    Broadcast a PATCH message to the aircraft and record it in history.
+    Determine which aircraft IDs to target from a request body.
+
+    Supported shapes:
+
+      - { "aircraft_id": "A1", ... }
+      - { "aircraft_ids": ["A1", "A2"], ... }
+      - if neither is present, falls back to DEFAULT_AIRCRAFT_ID.
     """
-    payload, err = _accept_json_request()
-    if err:
-        return jsonify({"error": "invalid payload", "detail": err}), 400
+    aircraft_ids: List[str] = []
 
-    entry = store.add_entry("PATCH", payload)
-    outbound = {"type": "PATCH", "payload": deepcopy(payload)}
-    remote = post_to_aircraft(outbound)
-    remote_result = remote.get("result", {}) if isinstance(remote, dict) else {}
+    if "aircraft_ids" in body and isinstance(body["aircraft_ids"], list):
+        aircraft_ids = [str(a) for a in body["aircraft_ids"] if a]
 
-    status = "ok" if remote_result.get("ok") else "failed"
-    store.update_entry(entry.id, status, remote)
+    elif "aircraft_id" in body and body["aircraft_id"]:
+        aircraft_ids = [str(body["aircraft_id"])]
 
-    # Forward remote details to the caller. If remote failed, surface 502 so operator sees failure.
-    response_body = {"local": {"record_id": entry.id}, "remote": remote}
-    if not remote_result.get("ok"):
-        return jsonify(response_body), 502
-    return jsonify(response_body), 200
+    if not aircraft_ids:
+        default_id = app.config.get("DEFAULT_AIRCRAFT_ID")
+        if default_id:
+            aircraft_ids = [str(default_id)]
+
+    return sorted(set(aircraft_ids))
 
 
-@app.route("/api/send_full", methods=["POST"])
-def api_send_full():
+def _broadcast_to_aircrafts(
+    msg_type: str,
+    payload: Dict[str, Any],
+) -> Dict[str, Any]:
     """
-    Broadcast a FULL snapshot to the aircraft and record it in history.
+    Send the given message type/payload to one or more aircraft.
+
+    The incoming payload may contain `aircraft_id` or `aircraft_ids` control
+    fields; these are stripped before sending the actual payload to aircraft.
+
+    Returns a dict:
+      {
+        "local": {
+          "record_id": int,
+          "status": "ok"|"partial"|"failed",
+          "target_aircraft_ids": [...],
+          "ok_count": int,
+          "fail_count": int,
+        },
+        "per_aircraft": {
+          "<id>": {
+            "outbound": {...},
+            "result": {...}
+          },
+          ...
+        }
+      }
     """
-    payload, err = _accept_json_request()
-    if err:
-        return jsonify({"error": "invalid payload", "detail": err}), 400
+    # decide which aircraft to target
+    aircraft_ids = _extract_aircraft_ids(payload)
+    if not aircraft_ids:
+        return {
+            "error": "no aircraft specified and DEFAULT_AIRCRAFT_ID not configured",
+            "detail": "Provide 'aircraft_id' or 'aircraft_ids', or configure DEFAULT_AIRCRAFT_ID",
+        }
 
-    entry = store.add_entry("FULL", payload)
-    outbound = {"type": "FULL", "payload": deepcopy(payload)}
-    remote = post_to_aircraft(outbound)
-    remote_result = remote.get("result", {}) if isinstance(remote, dict) else {}
+    # remove routing hints before sending to aircraft
+    outbound_payload = deepcopy(payload)
+    outbound_payload.pop("aircraft_id", None)
+    outbound_payload.pop("aircraft_ids", None)
 
-    status = "ok" if remote_result.get("ok") else "failed"
-    store.update_entry(entry.id, status, remote)
+    entry = store.add_entry(msg_type, outbound_payload)
 
-    response_body = {"local": {"record_id": entry.id}, "remote": remote}
-    if not remote_result.get("ok"):
-        return jsonify(response_body), 502
-    return jsonify(response_body), 200
+    per_aircraft_results: Dict[str, Any] = {}
+    ok_count = 0
+    fail_count = 0
+
+    for aid in aircraft_ids:
+        wire_payload = {
+            "type": msg_type,
+            "payload": deepcopy(outbound_payload),
+        }
+        remote = post_to_aircraft(aid, wire_payload)
+
+        # Determine per-aircraft ok/fail
+        remote_result = remote.get("result", {}) if isinstance(remote, dict) else {}
+        is_ok = bool(remote_result.get("ok"))
+        if is_ok:
+            ok_count += 1
+        else:
+            fail_count += 1
+
+        per_aircraft_results[aid] = remote
+
+        # Provisional status; final one recomputed after loop
+        status = "ok" if fail_count == 0 else ("partial" if ok_count > 0 else "failed")
+        store.update_entry_for_aircraft(entry.id, aid, status, remote)
+
+    # Final aggregate status
+    if fail_count == 0:
+        status = "ok"
+    elif ok_count == 0:
+        status = "failed"
+    else:
+        status = "partial"
+
+    # Ensure final status is stored at least once (for last aircraft)
+    if aircraft_ids:
+        last_aid = aircraft_ids[-1]
+        store.update_entry_for_aircraft(entry.id, last_aid, status, per_aircraft_results[last_aid])
+
+    return {
+        "local": {
+            "record_id": entry.id,
+            "status": status,
+            "target_aircraft_ids": aircraft_ids,
+            "ok_count": ok_count,
+            "fail_count": fail_count,
+        },
+        "per_aircraft": per_aircraft_results,
+    }
 
 
-@app.route("/api/send_rollback", methods=["POST"])
-def api_send_rollback():
-    """
-    Broadcast a ROLLBACK command to the aircraft and record it in history.
-    """
-    payload, err = _accept_json_request()
-    if err:
-        return jsonify({"error": "invalid payload", "detail": err}), 400
 
-    entry = store.add_entry("ROLLBACK", payload)
-    outbound = {"type": "ROLLBACK", "payload": deepcopy(payload)}
-    remote = post_to_aircraft(outbound)
-    remote_result = remote.get("result", {}) if isinstance(remote, dict) else {}
+broadcast_routes.init_app(
+    app,
+    store,
+    accept_json_request=_accept_json_request,
+    broadcast_to_aircrafts=_broadcast_to_aircrafts,
+    get_aircraft_list=get_aircraft_list,
+    get_headend_ping=get_headend_ping,
+    get_from_aircraft=get_from_aircraft,
+)
 
-    status = "ok" if remote_result.get("ok") else "failed"
-    store.update_entry(entry.id, status, remote)
-
-    response_body = {"local": {"record_id": entry.id}, "remote": remote}
-    if not remote_result.get("ok"):
-        return jsonify(response_body), 502
-    return jsonify(response_body), 200
-
-
-@app.route("/api/ping", methods=["GET"])
-def api_ping():
-    """
-    Ping the aircraft via GET and return its reported status/version.
-    """
-    url = f"{app.config["AIRCRAFT_URL"]}/ping"
-    timeout = app.config["REQUEST_TIMEOUT"]
-
-    try:
-        logger.info("PING -> aircraft %s", url)
-        started = datetime.utcnow()
-        resp = requests.get(url, timeout=timeout)
-        elapsed = (datetime.utcnow() - started).total_seconds() * 1000.0
-
-        try:
-            body = resp.json()
-        except Exception:
-            body = resp.text
-
-        ok = 200 <= resp.status_code < 300
-
-        return jsonify({
-            "ok": ok,
-            "status_code": resp.status_code,
-            "elapsed_ms": round(elapsed, 1),
-            "response": body
-        }), 200 if ok else 502
-
-    except requests.RequestException as e:
-        logger.exception("Ping to aircraft failed")
-        return jsonify({
-            "ok": False,
-            "error": str(e),
-            "note": "Unable to reach aircraft"
-        }), 502
-
-@app.route("/api/aircraft_state", methods=["GET"])
-def api_aircraft_state():
-    """Fetch the aircraft configuration state from the rollback service."""
-    url = f"{app.config['AIRCRAFT_URL']}/aircraft_state"
-    timeout = app.config["REQUEST_TIMEOUT"]
-    
-    try:
-        resp = requests.get(url, timeout=timeout)
-        resp.raise_for_status()
-        return jsonify(resp.json()), 200
-    except requests.RequestException as e:
-        logger.exception("Failed to fetch aircraft state")
-        return jsonify({
-            "ok": False,
-            "error": str(e),
-            "note": "Unable to reach aircraft state endpoint"
-        }), 502
 
 if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "9001"))
     debug = os.getenv("FLASK_DEBUG", "1") == "1"
-    logger.info("Starting broadcaster on %s:%s -> aircraft=%s", host, port, app.config["AIRCRAFT_URL"])
+    logger.info(
+        "Starting broadcaster on %s:%s -> headend_base=%s default_aircraft_id=%s",
+        host,
+        port,
+        app.config["AIRCRAFT_BASE_URL"],
+        app.config.get("DEFAULT_AIRCRAFT_ID"),
+    )
     app.run(host=host, port=port, debug=debug)

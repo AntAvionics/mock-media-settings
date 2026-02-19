@@ -15,12 +15,13 @@
       font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial;
       background:var(--bg); color:#111827;
     }
-    .container { max-width:1000px; margin:0 auto; }
-    header { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+    .container { max-width:1200px; margin:0 auto; }
+    header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px; }
     h1 { margin:0; font-size:1.25rem; }
     .sub { color:var(--muted); font-size:0.9rem; }
+    code { font-family:var(--mono); font-size:0.8rem; }
 
-    .grid { display:grid; gap:12px; grid-template-columns: 1fr 380px; }
+    .grid { display:grid; gap:12px; grid-template-columns: 1.3fr 1fr; align-items:flex-start; }
     .card {
       background:var(--card);
       border:1px solid #e6edf3;
@@ -45,6 +46,7 @@
       background:var(--accent); color:white;
       padding:8px 12px; border-radius:6px;
       cursor:pointer; border:none; font-weight:600;
+      font-size:0.9rem;
     }
     .btn.secondary { background:#111827; }
     .btn[disabled] { opacity:0.5; cursor:not-allowed; }
@@ -57,6 +59,51 @@
       font-family:var(--mono); font-size:13px;
       white-space:pre-wrap;
     }
+    .pill {
+      display:inline-flex; align-items:center; gap:4px;
+      padding:2px 6px; border-radius:999px;
+      background:#e5e7eb; font-size:0.75rem;
+    }
+    .pill.ok { background:#dcfce7; color:#14532d; }
+    .pill.failed { background:#fee2e2; color:#991b1b; }
+    .pill.partial { background:#fef3c7; color:#92400e; }
+    .tag {
+      display:inline-block;
+      padding:2px 6px;
+      border-radius:999px;
+      font-size:0.7rem;
+      background:#e5e7eb;
+      margin-right:4px;
+    }
+    .tag-aircraft { background:#dbeafe; color:#1d4ed8; }
+    .aircraft-list {
+      max-height:120px;
+      overflow:auto;
+      margin-top:6px;
+      border-radius:6px;
+      border:1px solid #e5e7eb;
+      padding:4px;
+      background:#f9fafb;
+      font-family:var(--mono);
+      font-size:0.8rem;
+    }
+    .aircraft-row {
+      display:flex;
+      justify-content:space-between;
+      padding:2px 4px;
+    }
+    .aircraft-row span.id { font-weight:600; }
+    .aircraft-row span.lva { color:var(--muted); }
+    .aircraft-row button {
+      font-size:0.7rem;
+      padding:2px 6px;
+    }
+    .flex-between {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+    }
   </style>
 </head>
 <body>
@@ -65,9 +112,21 @@
     <div>
       <h1>Mock Media Settings — Dashboard</h1>
       <div class="sub">
-        Forwarding to aircraft:
-        <code>{{ aircraft_url }}</code>
+        Headend base URL:
+        <code>{{ aircraft_base_url }}</code>
+        {% if default_aircraft_id %}
+          · Default aircraft:
+          <code>{{ default_aircraft_id }}</code>
+        {% else %}
+          · <span style="color:#b91c1c;font-weight:600">No DEFAULT_AIRCRAFT_ID configured</span>
+        {% endif %}
       </div>
+      <div class="sub small">
+        This UI sends FULL/PATCH/ROLLBACK to one or more aircraft via the multi-aircraft rollback service.
+      </div>
+    </div>
+    <div class="small" id="headend-health">
+      Headend: <span class="pill" id="headend-pill">checking…</span>
     </div>
   </header>
 
@@ -75,11 +134,50 @@
     <!-- LEFT -->
     <div>
       <div class="card">
-        <h3>Current State</h3>
+        <div class="flex-between">
+          <h3 style="margin:0">Target Aircraft</h3>
+          <button class="btn secondary" style="padding:4px 8px;font-size:0.8rem" onclick="reloadAircraftList()">
+            Refresh list
+          </button>
+        </div>
+
+        <div class="small" style="margin-top:4px">
+          Choose which aircraft to target. You can send to a single aircraft or multiple.
+        </div>
+
+        <label for="aircraft-mode">Selection mode</label>
+        <select id="aircraft-mode" onchange="onAircraftModeChange()">
+          <option value="single">Single aircraft</option>
+          <option value="multiple">Multiple aircraft</option>
+        </select>
+
+        <label for="aircraft-select">Available aircraft (from headend)</label>
+        <select id="aircraft-select" multiple size="4" onchange="syncSelectionFromList()">
+          <!-- options populated via JS -->
+        </select>
+
+        <div class="small" style="margin-top:4px">
+          <strong>Tip:</strong> Use Ctrl/⌘ + click to select multiple aircraft when in "Multiple" mode.
+        </div>
+
+        <label for="aircraft-ids-input">Aircraft IDs (comma-separated)</label>
+        <input id="aircraft-ids-input" type="text" placeholder="e.g. A1,A2,A3" onblur="syncSelectionFromInput()" />
+
+        <div class="small" style="margin-top:4px">
+          If left empty, the backend will fall back to <code>DEFAULT_AIRCRAFT_ID</code> if configured.
+        </div>
+
+        <div class="aircraft-list" id="aircraft-list-panel">
+          Loading aircraft list…
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h3>Current Broadcast Summary</h3>
         <div id="state-summary">Loading…</div>
         <div class="row">
-          <button class="btn" onclick="refreshState()">Refresh</button>
-          <button class="btn" onclick="fetchHistory()">Show History</button>
+          <button class="btn" onclick="refreshState()">Refresh summary</button>
+          <button class="btn secondary" onclick="fetchHistory()">Show history</button>
         </div>
         <div id="initial-warning" class="small" style="color:#b91c1c;font-weight:600">
           Initial FULL (v1+) required before PATCH or ROLLBACK.
@@ -88,6 +186,10 @@
 
       <div class="card" style="margin-top:12px">
         <h3>Send PATCH</h3>
+        <div class="small">
+          Payload will be sent to the aircraft IDs selected above.
+          Routing fields (<code>aircraft_id</code>/<code>aircraft_ids</code>) are added automatically.
+        </div>
         <textarea id="patch-json" rows="7"></textarea>
         <div class="row">
           <button class="btn" id="btn-send-patch" onclick="sendPatch()" disabled>
@@ -99,6 +201,9 @@
 
       <div class="card" style="margin-top:12px">
         <h3>Send FULL snapshot</h3>
+        <div class="small">
+          FULL replaces state on all selected aircraft. Recommended before first PATCH.
+        </div>
         <textarea id="full-json" rows="7"></textarea>
         <div class="row">
           <button class="btn" onclick="sendFull()">Send FULL</button>
@@ -109,8 +214,9 @@
       <div class="card" style="margin-top:12px">
         <h3>Send ROLLBACK</h3>
         <select id="rollback-target">
-          <option value="LVA">LVA — Last Version Active</option>
-          <option value="LKG">LKG — Last Known Good</option>
+          <option value="lva">LVA — Last Version Active</option>
+          <option value="lkg">LKG — Last Known Good</option>
+          <option value="auto">AUTO — Automatic 2 Tier</option>
         </select>
         <div class="row">
           <button class="btn" id="btn-send-rollback" onclick="sendRollback()" disabled>
@@ -123,32 +229,42 @@
     <!-- RIGHT -->
     <div>
       <div class="card">
-        <h3>Current State</h3>
+        <div class="flex-between">
+          <h3 style="margin:0">Per-aircraft State</h3>
+          <select id="state-aircraft-select" onchange="renderAircraftState()">
+            <!-- populated with same IDs as aircraft list -->
+          </select>
+        </div>
+        <div class="small" style="margin-top:4px">
+          Shows the state for a single aircraft (/api/aircraft_state?aircraft_id=&lt;id&gt;).
+        </div>
         <pre id="currentState">None</pre>
       </div>
 
-      <div class="card">
+      <div class="card" style="margin-top:12px">
         <h3>Activity / Response</h3>
         <pre id="activity">Idle</pre>
       </div>
 
       <div class="card" style="margin-top:12px">
-        <h3>Diagnostics</h3>
+        <h3>Diagnostics & History</h3>
         <div class="row">
-          <button class="btn" onclick="pingAircraft()">Ping aircraft</button>
-          <button class="btn" onclick="fetchHistory()">Load history</button>
+          <button class="btn" onclick="pingHeadend()">Ping headend</button>
+          <button class="btn" onclick="pingSelectedAircraft()">Ping selected aircraft</button>
+          <button class="btn secondary" onclick="fetchHistory()">Load history</button>
         </div>
-        <div id="history-list" style="margin-top:12px"></div>
+        <div id="history-list" style="margin-top:12px; max-height:220px; overflow:auto;"></div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-window.onload = function() {
-    fillExamplePatch();
-    fillExampleFull();
-};
+/* ---------- small helpers ---------- */
+function pretty(o) {
+  return JSON.stringify(o, null, 2);
+}
+
 async function fetchJson(path, opts) {
   const r = await fetch(path, opts);
   const t = await r.text();
@@ -163,80 +279,167 @@ function parseAndPrettify(id) {
   return obj;
 }
 
-function pretty(o) {
-  return JSON.stringify(o, null, 2);
+/* ---------- aircraft selection state ---------- */
+let knownAircraft = {}; // { id: { id, lva, ... } }
+
+function getSelectedAircraftIds() {
+  const mode = document.getElementById('aircraft-mode').value;
+  const raw = document.getElementById('aircraft-ids-input').value.trim();
+  let ids = [];
+
+  if (raw) {
+    ids = raw.split(',').map(s => s.trim()).filter(Boolean);
+  } else {
+    // fall back to <select> current selection
+    const sel = document.getElementById('aircraft-select');
+    const selected = Array.from(sel.options).filter(o => o.selected).map(o => o.value);
+    ids = selected;
+  }
+
+  // de-dup
+  ids = Array.from(new Set(ids));
+
+  if (mode === 'single' && ids.length > 1) {
+    ids = ids.slice(0, 1);
+  }
+
+  return ids;
 }
 
-/* ---------- examples ---------- */
-function fillExamplePatch() {
-  document.getElementById('patch-json').value = pretty({
-    version: 2,
-    prev: 1,
-    changes: { campaignA_priority: 85 }
-  });
+function onAircraftModeChange() {
+  const mode = document.getElementById('aircraft-mode').value;
+  const sel = document.getElementById('aircraft-select');
+  if (mode === 'single') {
+    // ensure only one selected in UI
+    const first = sel.options[0];
+    Array.from(sel.options).forEach(o => o.selected = false);
+    if (first) first.selected = true;
+    syncSelectionFromList();
+  }
 }
 
-function fillExampleFull() {
-  document.getElementById('full-json').value = pretty({
-    version: 1,
-    data: {
-      campaignA_priority: 70,
-      campaignB_routes: []
-    }
+function syncSelectionFromList() {
+  const sel = document.getElementById('aircraft-select');
+  const ids = Array.from(sel.options).filter(o => o.selected).map(o => o.value);
+  document.getElementById('aircraft-ids-input').value = ids.join(',');
+  // keep the detail state selector in sync
+  populateStateAircraftSelect(ids.length ? ids : Object.keys(knownAircraft));
+}
+
+function syncSelectionFromInput() {
+  const rawIds = getSelectedAircraftIds();
+  const sel = document.getElementById('aircraft-select');
+  Array.from(sel.options).forEach(o => {
+    o.selected = rawIds.includes(o.value);
   });
+  populateStateAircraftSelect(rawIds.length ? rawIds : Object.keys(knownAircraft));
+}
+
+/* ---------- example payloads ---------- */
+async function fillExamplePatch() {
+  try {
+    const response = await fetch('/static/resource/examplePatch.json');
+    const data = await response.json();
+    document.getElementById('patch-json').value = JSON.stringify(data, null, 2);
+  } catch {
+    document.getElementById('patch-json').value = pretty({
+      version: 2,
+      prev: 1,
+      changes: { campaignA_priority: 85 }
+    });
+  }
+}
+
+async function fillExampleFull() {
+  try {
+    const response = await fetch('/static/resource/exampleFull.json');
+    const data = await response.json();
+    document.getElementById('full-json').value = JSON.stringify(data, null, 2);
+  } catch {
+    document.getElementById('full-json').value = pretty({
+      version: 1,
+      data: {
+        campaignA_priority: 70,
+        campaignB_routes: []
+      }
+    });
+  }
+}
+
+/* ---------- API helpers: build body with aircraft ids ---------- */
+function withAircraftRouting(basePayload) {
+  const ids = getSelectedAircraftIds();
+  const body = Object.assign({}, basePayload);
+  if (ids.length === 1) {
+    body.aircraft_id = ids[0];
+  } else if (ids.length > 1) {
+    body.aircraft_ids = ids;
+  }
+  return body;
 }
 
 /* ---------- actions ---------- */
 async function sendPatch() {
   let obj; try { obj = parseAndPrettify('patch-json'); }
-  catch { return alert('Invalid JSON'); }
+  catch { return alert('Invalid JSON in PATCH payload'); }
+
+  const body = withAircraftRouting(obj);
+
   const res = await fetchJson('/api/send_patch', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(obj)
+    body:JSON.stringify(body)
   });
-  renderActivity(res); refreshState();
+  renderActivity(res);
+  refreshState();
   renderAircraftState();
 }
 
 async function sendFull() {
   let obj; try { obj = parseAndPrettify('full-json'); }
-  catch { return alert('Invalid JSON'); }
+  catch { return alert('Invalid JSON in FULL payload'); }
+
+  const body = withAircraftRouting(obj);
+
   const res = await fetchJson('/api/send_full', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(obj)
+    body:JSON.stringify(body)
   });
-  renderActivity(res); refreshState();
+  renderActivity(res);
+  refreshState();
   renderAircraftState();
 }
 
 async function sendRollback() {
   const target = document.getElementById('rollback-target').value;
+  const body = withAircraftRouting({ target });
+
   const res = await fetchJson('/api/send_rollback', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({ target })
+    body:JSON.stringify(body)
   });
-  renderActivity(res); refreshState();
+  renderActivity(res);
+  refreshState();
   renderAircraftState();
 }
 
-/* Helpers to insert examples */
-async function fillExamplePatch() {
-  const response = await fetch('/static/resource/examplePatch.json');
-  const data = await response.json();
-  document.getElementById('patch-json').value = JSON.stringify(data, null, 2);
-}
-async function fillExampleFull() {
-  const response = await fetch('static/resource/exampleFull.json');
-  const data = await response.json();
-  document.getElementById('full-json').value = JSON.stringify(data, null, 2);
-}
-function fillExampleRollback() {
-  document.getElementById('rollback-target').value = 'LVA';
-}
-async function pingAircraft() {
-  const res = await fetchJson('/api/ping');
+/* ---------- diagnostics ---------- */
+async function pingHeadend() {
+  const res = await fetchJson('/api/headend_ping');
   renderActivity(res);
-  renderAircraftState();
+  updateHeadendPill(res);
+}
+
+async function pingSelectedAircraft() {
+  const ids = getSelectedAircraftIds();
+  let id = null;
+  if (ids.length) {
+    id = ids[0];
+  } else if (Object.keys(knownAircraft).length) {
+    id = Object.keys(knownAircraft)[0];
+  }
+  const url = id ? `/api/aircraft_ping?aircraft_id=${encodeURIComponent(id)}` : '/api/aircraft_ping';
+  const res = await fetchJson(url);
+  renderActivity(res);
 }
 
 /* ---------- rendering ---------- */
@@ -246,9 +449,18 @@ function renderActivity(res) {
 }
 
 async function renderAircraftState() {
-  const res = await fetchJson('/api/aircraft_state');
+  const sel = document.getElementById('state-aircraft-select');
+  let id = sel.value;
+  if (!id) {
+    const ids = getSelectedAircraftIds();
+    if (ids.length) id = ids[0];
+  }
+  const url = id ? `/api/aircraft_state?aircraft_id=${encodeURIComponent(id)}` : '/api/aircraft_state';
+  const res = await fetchJson(url);
   if (!res.json) return;
-  document.getElementById('currentState').textContent = pretty(res.json["active"]);
+  // backend returns { aircraft_id, result: {...} }
+  const payload = res.json.result ? res.json.result.response : res.json;
+  document.getElementById('currentState').textContent = pretty(payload);
 }
 
 function renderStateSummary(state) {
@@ -258,9 +470,10 @@ function renderStateSummary(state) {
     return;
   }
   const h = state.history[0];
+  const status = h.status || 'unknown';
   s.textContent =
     `Broadcasts: ${state.history.length}\n` +
-    `Last: ${h.type} #${h.id}\nStatus: ${h.status}\nTime: ${h.timestamp}`;
+    `Last: ${h.type} #${h.id}\nStatus: ${status}\nTime: ${h.timestamp}`;
 }
 
 function updateControls(state) {
@@ -278,11 +491,33 @@ async function fetchHistory() {
   list.innerHTML = '';
   res.json.history.forEach(h => {
     const d = document.createElement('div');
-    d.textContent = `${h.timestamp} · ${h.type} #${h.id} · ${h.status}`;
+    d.style.padding = '4px 0';
+    d.style.borderBottom = '1px solid #e5e7eb';
     d.style.cursor = 'pointer';
+
+    const perAircraft = h.remote_by_aircraft || {};
+    const ids = Object.keys(perAircraft);
+    const label = document.createElement('div');
+    label.textContent = `${h.timestamp} · ${h.type} #${h.id} · ${h.status}`;
+
+    const tags = document.createElement('div');
+    if (ids.length) {
+      ids.forEach(id => {
+        const span = document.createElement('span');
+        span.className = 'tag tag-aircraft';
+        const ok = perAircraft[id]?.result?.ok;
+        const suffix = ok === true ? '✓' : (ok === false ? '✕' : '?');
+        span.textContent = `${id} ${suffix}`;
+        tags.appendChild(span);
+      });
+    }
+
     d.onclick = () => {
       document.getElementById('activity').textContent = pretty(h);
     };
+
+    d.appendChild(label);
+    d.appendChild(tags);
     list.appendChild(d);
   });
 }
@@ -294,9 +529,119 @@ async function refreshState() {
   updateControls(res.json);
 }
 
-fillExamplePatch();
-fillExampleFull();
-refreshState();
+/* ---------- aircraft list rendering ---------- */
+function renderAircraftListResult(result) {
+  const panel = document.getElementById('aircraft-list-panel');
+  // `result` is the body from the headend /aircraft endpoint:
+  //   { ok: bool, aircraft: { <id>: { id, lva, ... }, ... } }
+  if (!result.ok || !result.aircraft) {
+    panel.textContent = 'Unable to load aircraft list.';
+    return;
+  }
+  const aircraft = result.aircraft || {};
+  knownAircraft = aircraft;
+
+  const sel = document.getElementById('aircraft-select');
+  sel.innerHTML = '';
+  Object.keys(aircraft).sort().forEach(id => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = id;
+    sel.appendChild(opt);
+  });
+
+  // detail state selector gets same ids
+  populateStateAircraftSelect(Object.keys(aircraft));
+
+  const lines = [];
+  Object.entries(aircraft).forEach(([id, info]) => {
+    const hasLvaValue = info.lva !== undefined && info.lva !== null;
+    const lva = hasLvaValue ? `LVA: ${info.lva}` : '';
+    const lkg = info.lkg !== undefined && info.lkg !== null ? `LKG: ${info.lkg}` : '';
+    const active = info.active !== undefined && info.active !== null ? `Active: ${info.active}` : '';
+    const details = [lva, lkg, active].filter(Boolean).join(' · ');
+    lines.push(
+      `<div class="aircraft-row">` +
+        `<span>` +
+          `<span class="id">${id}</span>` +
+        `</span>` +
+        `<span class="lva">${details || 'No details'}</span>` +
+      `</div>`
+    );
+  });
+  if (!lines.length) {
+    panel.textContent = 'No aircraft reported by headend yet.';
+  } else {
+    panel.innerHTML = lines.join('');
+  }
+}
+
+
+function populateStateAircraftSelect(ids) {
+  const sel = document.getElementById('state-aircraft-select');
+  const current = sel.value;
+  sel.innerHTML = '';
+  ids.sort().forEach(id => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = id;
+    sel.appendChild(opt);
+  });
+  if (ids.includes(current)) {
+    sel.value = current;
+  } else if (ids.length) {
+    sel.value = ids[0];
+  }
+}
+
+async function reloadAircraftList() {
+  const res = await fetchJson('/api/aircraft');
+  if (!res.json) {
+    document.getElementById('aircraft-list-panel').textContent = 'Error fetching aircraft list.';
+    return;
+  }
+  // res.json is wrapper: { ok, status_code, response: { ok, aircraft:{...}} }
+  const inner = res.json.response || res.json;
+  renderAircraftListResult(inner);
+}
+
+/* ---------- headend health ---------- */
+function updateHeadendPill(res) {
+  const pill = document.getElementById('headend-pill');
+  if (!res.json) {
+    pill.textContent = 'unreachable';
+    pill.className = 'pill failed';
+    return;
+  }
+  const ok = res.json.ok;
+  const count = res.json.response && res.json.response.aircraft_count;
+  if (ok) {
+    pill.textContent = typeof count === 'number'
+      ? `ok · aircraft=${count}`
+      : 'ok';
+    pill.className = 'pill ok';
+  } else {
+    pill.textContent = 'error';
+    pill.className = 'pill failed';
+  }
+}
+
+/* ---------- bootstrapping ---------- */
+async function bootstrap() {
+  await Promise.all([
+    fillExamplePatch(),
+    fillExampleFull(),
+    refreshState(),
+    reloadAircraftList(),
+    (async () => {
+      const res = await fetchJson('/api/headend_ping');
+      if (res.json) updateHeadendPill(res);
+    })()
+  ]);
+  renderAircraftState();
+}
+
+window.onload = bootstrap;
 </script>
 </body>
 </html>
