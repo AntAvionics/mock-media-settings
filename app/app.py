@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, render_template
-import requests
 
 from app.broadcast.models import BroadcastStore
 from app.broadcast.http_client import HttpClient
@@ -27,8 +26,8 @@ class CampaignUpdateStore:
         self.updates: List[Dict[str, Any]] = []
         self._id_counter = 1
         self._lock = threading.Lock()
-    
-    def log_update(self, tail_number: str, rule_id: str, 
+
+    def log_update(self, tail_number: str, rule_id: str,
                    adload_version: str, update_type: str) -> int:
         with self._lock:
             entry = {
@@ -43,7 +42,7 @@ class CampaignUpdateStore:
             logger.info(f"Campaign update: {entry}")
             self._id_counter += 1
             return entry["id"]
-    
+
     def get_history(self, tail_number: Optional[str] = None) -> List[Dict[str, Any]]:
         with self._lock:
             if tail_number:
@@ -239,14 +238,20 @@ def _broadcast_to_aircrafts(
         is_ok = bool(remote_result.get("ok"))
         if is_ok:
             ok_count += 1
-            campaign_store_obj.log_update(
-                tail_number=aid,
-                rule_id=payload.get("rule_id", "N/A"),
-                adload_version=str(payload.get("version", "unknown")),
-                update_type=msg_type
-            )
         else:
             fail_count += 1
+
+        campaign_store_obj.log_update(
+            tail_number=aid,
+            rule_id=payload.get("rule_id", "N/A"),
+            adload_version=str(payload.get("adload_version", payload.get("version", "unknown"))),
+            update_type=payload.get("update_type", msg_type)
+        )
+        try:
+            last_update = campaign_store_obj.updates[-1] if campaign_store_obj.updates else None
+        except Exception as e:
+            last_update = None
+        print("Logged campaign update event:", last_update)
 
         per_aircraft_results[aid] = remote
 
@@ -278,37 +283,6 @@ def _broadcast_to_aircrafts(
         "per_aircraft": per_aircraft_results,
     }
 
-@app.route("/api/v1/campaign-updates", methods=["POST"])
-def log_campaign_update():
-    store_obj = app.config["CAMPAIGN_STORE"]
-    data = request.get_json(force=True) or {}
-    
-    tail_number = data.get("tail_number")
-    if not tail_number:
-        return jsonify({"ok": False, "error": "tail_number required"}), 400
-    
-    update_id = store_obj.log_update(
-        tail_number=tail_number,
-        rule_id=data.get("rule_id", "N/A"),
-        adload_version=data.get("adload_version", "unknown"),
-        update_type=data.get("update_type", "UNKNOWN")
-    )
-    
-    return jsonify({"ok": True, "update_id": update_id}), 200
-
-
-@app.route("/api/v1/campaign-updates/history", methods=["GET"])
-def get_campaign_history():
-    store_obj = app.config["CAMPAIGN_STORE"]
-    tail_number = request.args.get("tail_number")
-    history = store_obj.get_history(tail_number)
-    
-    return jsonify({
-        "ok": True,
-        "count": len(history),
-        "updates": history
-    }), 200
-
 
 broadcast_routes.init_app(
     app,
@@ -319,6 +293,19 @@ broadcast_routes.init_app(
     get_headend_ping=get_headend_ping,
     get_from_aircraft=get_from_aircraft,
 )
+
+
+@app.route("/api/v1/campaign-updates/history", methods=["GET"])
+def get_campaign_history():
+    store_obj = app.config["CAMPAIGN_STORE"]
+    tail_number = request.args.get("tail_number")
+    history = store_obj.get_history(tail_number)
+
+    return jsonify({
+        "ok": True,
+        "count": len(history),
+        "updates": history
+    }), 200
 
 
 if __name__ == "__main__":
