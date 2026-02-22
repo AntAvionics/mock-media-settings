@@ -148,6 +148,7 @@ class RuleRecord:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "rule_id": self.rule_id,
+            "payload_hash": self.payload_hash,
             "adload_version": self.adload_version,
             "campaign_ids": self.campaign_ids,
             "tail_number": self.tail_number,

@@ -1,7 +1,12 @@
 from __future__ import annotations
-from typing import Any, Dict, Tuple
+
+import logging
+from typing import Any, Dict, Tuple, Optional
+from app.broadcast.campaign_models import CampaignUpdate
 
 from flask import jsonify, render_template, request
+
+logger = logging.getLogger("mock_media_settings.broadcast.routes")
 
 _app = None
 _store = None
@@ -344,3 +349,148 @@ def _register_routes(app) -> None:
         result = _get_from_aircraft(aircraft_id, "state")
         code = 200 if result.get("ok") else 502
         return jsonify({"aircraft_id": aircraft_id, "result": result}), code
+    
+    # ------------------------------------------------------------------
+    # Campaign update endpoints (COA Story 3)
+    # ------------------------------------------------------------------
+
+    @app.route("/api/v1/campaign-updates", methods=["POST"])
+    def submit_campaign_update():
+        """
+        Ground submits a campaign update. Returns a rule-id.
+
+        COA-1: if payload matches an existing rule, return existing rule-id.
+               if new, generate and store a new rule-id.
+        COA-2: stores adload_version, campaign_ids, tail_number, timestamp.
+        """
+
+        data = request.get_json(force=True) or {}
+        rm = app.config["RULE_MANAGER"]
+
+        try:
+            update = CampaignUpdate.from_dict(
+                data,
+                adload_version=data.get("adload_version"),
+                tail_number=data.get("tail_number"),
+            )
+        except (KeyError, TypeError, ValueError) as e:
+            return jsonify({"ok": False, "error": f"Invalid payload: {e}"}), 400
+
+        payload_hash = rm._hash_payload(update)
+        was_existing = payload_hash in rm._hash_index
+
+        record = rm.get_or_create_rule(update)
+
+        return jsonify({
+            "ok": True,
+            "rule_id": record.rule_id,
+            "is_duplicate": was_existing,
+            "record": record.to_dict(),
+        }), 200
+
+    @app.route("/api/v1/campaign-updates", methods=["GET"])
+    def get_campaign_updates():
+        rm = app.config["RULE_MANAGER"]
+        adload_version = request.args.get("adload-version")
+        tail_number = request.args.get("tail-number")
+
+        if not adload_version:
+            return jsonify({"ok": False, "error": "adload-version is required"}), 400
+
+        logger.info(
+            "GET campaign-updates: tail=%s adload=%s",
+            tail_number or "unknown", adload_version,
+        )
+
+        rules = rm.query(adload_version=adload_version)
+        if not rules:
+            return jsonify({
+                "ok": True,
+                "rule-id": None,
+                "campaigns": [],
+                "creatives": [],
+                "message": f"No updates found for adload-version={adload_version}",
+            }), 200
+
+        latest = rules[0]  # query() returns newest-first
+        meta = latest.metadata
+
+        return jsonify({
+            "ok": True,
+            "rule-id": latest.rule_id,
+            "campaigns": meta.get("campaigns", []),
+            "creatives": meta.get("creatives", []),
+            "targeting_zones": meta.get("targeting_zones", {}),
+        }), 200
+
+    @app.route("/api/v1/campaign-updates/status", methods=["POST"])
+    def campaign_update_status():
+        """
+        Airside reports update progress back to ground.
+        """
+        data = request.get_json(force=True) or {}
+        tail = data.get("tail")
+        status = data.get("status")
+        updated = data.get("updated")
+
+        valid_statuses = {"METADATA_UPDATE_START", "METADATA_UPDATE_COMPLETE"}
+        if not tail or not status or not updated:
+            return jsonify({"ok": False, "error": "tail, status, and updated are required"}), 400
+        if status not in valid_statuses:
+            return jsonify({"ok": False, "error": f"status must be one of {valid_statuses}"}), 400
+
+        updated_campaigns = data.get("updated_campaigns", [])
+        logger.info(
+            "Campaign status: tail=%s status=%s updated=%s campaigns=%s",
+            tail, status, updated, updated_campaigns or "n/a",
+        )
+
+        response = {"ok": True, "tail": tail, "status": status, "updated": updated}
+        if status == "METADATA_UPDATE_COMPLETE":
+            response["updated_campaigns"] = updated_campaigns
+
+        return jsonify(response), 200
+
+    @app.route("/api/v1/campaign-updates/rules", methods=["GET"])
+    def list_rules():
+        """
+        COA-5: query stored rules for ground tool and QuickSight reports.
+
+        Query params (all optional — ANDed together):
+          adload_version : filter by adload version
+          tail_number    : filter by tail number
+          campaign_id    : filter by campaign ID
+        """
+        rm = app.config["RULE_MANAGER"]
+
+        adload_version = request.args.get("adload_version")
+        tail_number = request.args.get("tail_number")
+        campaign_id_raw = request.args.get("campaign_id")
+
+        campaign_id: Optional[int] = None
+        if campaign_id_raw is not None:
+            try:
+                campaign_id = int(campaign_id_raw)
+            except ValueError:
+                return jsonify({"ok": False, "error": "campaign_id must be an integer"}), 400
+
+        results = rm.query(
+            adload_version=adload_version,
+            tail_number=tail_number,
+            campaign_id=campaign_id,
+        )
+
+        return jsonify({
+            "ok": True,
+            "count": len(results),
+            "rules": [r.to_dict() for r in results],
+        }), 200
+
+    @app.route("/api/v1/campaign-updates/rules/<rule_id>", methods=["GET"])
+    def get_rule(rule_id: str):
+        """COA-5: look up one rule by rule-id."""
+        rm = app.config["RULE_MANAGER"]
+        record = rm.get_by_rule_id(rule_id)
+        if not record:
+            return jsonify({"ok": False, "error": f"rule_id '{rule_id}' not found"}), 404
+        return jsonify({"ok": True, "rule": record.to_dict()}), 200
