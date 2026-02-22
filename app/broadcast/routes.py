@@ -138,6 +138,32 @@ def _register_routes(app) -> None:
         store = _require_store()
         return jsonify(store.get_state())
 
+    @app.route("/api/v1/campaign-updates/history", methods=["GET"])
+    def api_campaign_updates_history_v1():
+        """
+        Return campaign update history (v1 compatibility endpoint).
+
+        Query params:
+          ?tail_number=<TAIL_NUMBER>   (optional) - filter updates by tail_number
+
+        This mirrors the legacy route previously defined on the application top-level
+        module so callers of /api/v1/campaign-updates/history get the same behavior
+        when using the broadcast routes module.
+        """
+        app_obj = _require_app()
+        campaign_store = app_obj.config.get("CAMPAIGN_STORE")
+        if campaign_store is None:
+            return jsonify({"ok": False, "error": "CAMPAIGN_STORE not configured"}), 500
+
+        tail_number = request.args.get("tail_number")
+        try:
+            history = campaign_store.get_history(tail_number)
+        except Exception as e:
+            # Defensive: if the campaign store misbehaves, return a 500 with details.
+            return jsonify({"ok": False, "error": "failed to retrieve history", "detail": str(e)}), 500
+
+        return jsonify({"ok": True, "count": len(history), "updates": history}), 200
+
     # ------------------------------------------------------------------
     # Broadcast endpoints
     # ------------------------------------------------------------------
@@ -160,6 +186,8 @@ def _register_routes(app) -> None:
         body, err = _accept_json_request()
         if err:
             return jsonify({"error": "invalid payload", "detail": err}), 400
+        if body is None:
+            return jsonify({"error": "invalid payload", "detail": "empty body"}), 400
 
         result = _broadcast_to_aircrafts("PATCH", body)
         if "error" in result:
@@ -188,6 +216,8 @@ def _register_routes(app) -> None:
         body, err = _accept_json_request()
         if err:
             return jsonify({"error": "invalid payload", "detail": err}), 400
+        if body is None:
+            return jsonify({"error": "invalid payload", "detail": "empty body"}), 400
 
         result = _broadcast_to_aircrafts("FULL", body)
         if "error" in result:
@@ -215,6 +245,8 @@ def _register_routes(app) -> None:
         body, err = _accept_json_request()
         if err:
             return jsonify({"error": "invalid payload", "detail": err}), 400
+        if body is None:
+            return jsonify({"error": "invalid payload", "detail": "empty body"}), 400
 
         result = _broadcast_to_aircrafts("ROLLBACK", body)
         if "error" in result:

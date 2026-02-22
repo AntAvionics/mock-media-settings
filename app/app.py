@@ -317,7 +317,9 @@ if __name__ == "__main__":
     print("📋 AVAILABLE ROUTES:")
     print("="*60)
     for rule in app.url_map.iter_rules():
-        methods = ', '.join(sorted(rule.methods - {'HEAD', 'OPTIONS'}))
+        methods_set = set(rule.methods) if rule.methods else set()
+        methods_set = methods_set - {"HEAD", "OPTIONS"}
+        methods = ", ".join(sorted(methods_set)) if methods_set else ""
         print(f"  [{methods:6}] {rule.rule}")
     print("="*60 + "\n")
 
