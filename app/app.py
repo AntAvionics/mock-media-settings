@@ -325,17 +325,6 @@ broadcast_routes.init_app(
 )
 
 
-@app.route("/api/v1/campaign-updates/history", methods=["GET"])
-def get_campaign_history():
-    store_obj = app.config["CAMPAIGN_STORE"]
-    tail_number = request.args.get("tail_number")
-    history = store_obj.get_history(tail_number)
-
-    return jsonify({
-        "ok": True,
-        "count": len(history),
-        "updates": history
-    }), 200
 
 
 if __name__ == "__main__":
