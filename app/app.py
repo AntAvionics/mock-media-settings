@@ -1,5 +1,6 @@
 import os
 import logging
+import threading
 from copy import deepcopy
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
@@ -21,6 +22,34 @@ DEFAULT_AIRCRAFT_BASE_URL = os.getenv("AIRCRAFT_BASE_URL", "http://localhost:900
 DEFAULT_REQUEST_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "5.0"))
 DEFAULT_AIRCRAFT_ID = os.getenv("DEFAULT_AIRCRAFT_ID", "A1")
 
+class CampaignUpdateStore:
+    def __init__(self):
+        self.updates: List[Dict[str, Any]] = []
+        self._id_counter = 1
+        self._lock = threading.Lock()
+    
+    def log_update(self, tail_number: str, rule_id: str, 
+                   adload_version: str, update_type: str) -> int:
+        with self._lock:
+            entry = {
+                "id": self._id_counter,
+                "tail_number": tail_number,
+                "rule_id": rule_id,
+                "adload_version": adload_version,
+                "update_type": update_type,
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+            }
+            self.updates.append(entry)
+            logger.info(f"Campaign update: {entry}")
+            self._id_counter += 1
+            return entry["id"]
+    
+    def get_history(self, tail_number: Optional[str] = None) -> List[Dict[str, Any]]:
+        with self._lock:
+            if tail_number:
+                return [u for u in self.updates if u["tail_number"] == tail_number]
+            return self.updates.copy()
+
 app = Flask(
     __name__,
     template_folder=os.path.join(os.path.dirname(__file__), "..", "templates"),
@@ -34,6 +63,10 @@ app.config.setdefault("DEFAULT_AIRCRAFT_ID", DEFAULT_AIRCRAFT_ID)
 
 store = BroadcastStore()
 app.config["STORE"] = store
+
+campaign_store = CampaignUpdateStore()
+app.config["CAMPAIGN_STORE"] = campaign_store
+
 
 http_client = HttpClient(
     base_url=app.config["AIRCRAFT_BASE_URL"],
@@ -188,6 +221,8 @@ def _broadcast_to_aircrafts(
 
     entry = store.add_entry(msg_type, outbound_payload)
 
+    campaign_store_obj = app.config["CAMPAIGN_STORE"]
+
     per_aircraft_results: Dict[str, Any] = {}
     ok_count = 0
     fail_count = 0
@@ -204,6 +239,12 @@ def _broadcast_to_aircrafts(
         is_ok = bool(remote_result.get("ok"))
         if is_ok:
             ok_count += 1
+            campaign_store_obj.log_update(
+                tail_number=aid,
+                rule_id=payload.get("rule_id", "N/A"),
+                adload_version=str(payload.get("version", "unknown")),
+                update_type=msg_type
+            )
         else:
             fail_count += 1
 
@@ -237,6 +278,36 @@ def _broadcast_to_aircrafts(
         "per_aircraft": per_aircraft_results,
     }
 
+@app.route("/api/v1/campaign-updates", methods=["POST"])
+def log_campaign_update():
+    store_obj = app.config["CAMPAIGN_STORE"]
+    data = request.get_json(force=True) or {}
+    
+    tail_number = data.get("tail_number")
+    if not tail_number:
+        return jsonify({"ok": False, "error": "tail_number required"}), 400
+    
+    update_id = store_obj.log_update(
+        tail_number=tail_number,
+        rule_id=data.get("rule_id", "N/A"),
+        adload_version=data.get("adload_version", "unknown"),
+        update_type=data.get("update_type", "UNKNOWN")
+    )
+    
+    return jsonify({"ok": True, "update_id": update_id}), 200
+
+
+@app.route("/api/v1/campaign-updates/history", methods=["GET"])
+def get_campaign_history():
+    store_obj = app.config["CAMPAIGN_STORE"]
+    tail_number = request.args.get("tail_number")
+    history = store_obj.get_history(tail_number)
+    
+    return jsonify({
+        "ok": True,
+        "count": len(history),
+        "updates": history
+    }), 200
 
 
 broadcast_routes.init_app(
@@ -254,6 +325,15 @@ if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "9001"))
     debug = os.getenv("FLASK_DEBUG", "1") == "1"
+
+    print("\n" + "="*60)
+    print("📋 AVAILABLE ROUTES:")
+    print("="*60)
+    for rule in app.url_map.iter_rules():
+        methods = ', '.join(sorted(rule.methods - {'HEAD', 'OPTIONS'}))
+        print(f"  [{methods:6}] {rule.rule}")
+    print("="*60 + "\n")
+
     logger.info(
         "Starting broadcaster on %s:%s -> headend_base=%s default_aircraft_id=%s",
         host,
