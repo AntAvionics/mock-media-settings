@@ -226,7 +226,7 @@ def _broadcast_to_aircrafts(
     rule_id = outbound_payload.get("rule_id", "N/A")
 
     is_campaign_update = any(
-        k in outbound_payload for k in ("campaigns", "creatives", "targeting_zones")
+        k in outbound_payload for k in ("data", "campaigns", "creatives", "targeting_zones", "version")
     )
     if is_campaign_update:
         try:
@@ -236,15 +236,20 @@ def _broadcast_to_aircrafts(
                 "unknown"
             )
             # Use first aircraft as tail for rule record (fleet-level update)
+            tail_number = aircraft_ids[0] if len(aircraft_ids) == 1 else None
+            
+            # Create CampaignUpdate object with proper parameters
             update = CampaignUpdate.from_dict(
                 outbound_payload,
                 adload_version=adload_version,
-                tail_number=aircraft_ids[0] if len(aircraft_ids) == 1 else None,
+                tail_number=tail_number,
             )
             record = rm.get_or_create_rule(update)
             rule_id = record.rule_id
             # Attach rule_id so aircraft can log it in impression offloads (COA-4)
             outbound_payload["rule_id"] = rule_id
+            
+            logger.info(f"Rule created/retrieved: {rule_id} for adload_version: {adload_version}")
         except Exception as e:
             logger.warning("Could not generate rule_id: %s", e)
 
@@ -325,17 +330,6 @@ broadcast_routes.init_app(
 )
 
 
-@app.route("/api/v1/campaign-updates/history", methods=["GET"])
-def get_campaign_history():
-    store_obj = app.config["CAMPAIGN_STORE"]
-    tail_number = request.args.get("tail_number")
-    history = store_obj.get_history(tail_number)
-
-    return jsonify({
-        "ok": True,
-        "count": len(history),
-        "updates": history
-    }), 200
 
 
 if __name__ == "__main__":

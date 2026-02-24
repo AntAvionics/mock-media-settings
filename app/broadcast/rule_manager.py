@@ -76,11 +76,11 @@ class RuleManager:
 
     @staticmethod
     def _hash_payload(update: CampaignUpdate) -> str:
-        #Exclue tail number from the hash
+        # Exclude tail number from the hash for deduplication
         payload = update.to_dict().copy()
         payload.pop("tail_number", None)
         
-        canonical = json.dumps(update.to_dict(), sort_keys=True, separators=(",", ":"))
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(canonical.encode()).hexdigest()
 
     @staticmethod

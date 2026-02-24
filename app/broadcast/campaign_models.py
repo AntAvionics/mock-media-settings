@@ -222,6 +222,13 @@ class CampaignUpdate:
     data: Dict[str, Campaign] = field(default_factory=dict)
     targeting_zones: Dict[str, Union[bool, TargetingZone]] = field(default_factory=dict)
     metadata: Optional[Metadata] = None
+    adload_version: Optional[str] = None
+    tail_number: Optional[str] = None
+
+    @property
+    def campaigns(self) -> List[Campaign]:
+        """Return campaigns as a list for compatibility with RuleManager"""
+        return list(self.data.values())
 
     def to_dict(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {"version": self.version}
@@ -240,11 +247,17 @@ class CampaignUpdate:
 
         if self.metadata is not None:
             d["metadata"] = self.metadata.to_dict()
+            
+        if self.adload_version is not None:
+            d["adload_version"] = self.adload_version
+            
+        if self.tail_number is not None:
+            d["tail_number"] = self.tail_number
 
         return d
 
     @staticmethod
-    def from_dict(data: Dict[str, Any]) -> "CampaignUpdate":
+    def from_dict(data: Dict[str, Any], adload_version: Optional[str] = None, tail_number: Optional[str] = None) -> "CampaignUpdate":
         version = data["version"]
 
         # Handle campaigns in data format
@@ -271,7 +284,9 @@ class CampaignUpdate:
             version=version,
             data=campaign_data,
             targeting_zones=targeting_zones,
-            metadata=metadata
+            metadata=metadata,
+            adload_version=adload_version or data.get("adload_version"),
+            tail_number=tail_number or data.get("tail_number")
         )
 
 
