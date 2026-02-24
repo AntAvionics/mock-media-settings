@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog } from "@/components/dialog"
-import { submitCampaignUpdate, pushToAircraft } from "@/lib/api"
+import { submitCampaignUpdate, pushToAircraft, getAircraft } from "@/lib/api"
 import { getPlacementLabel } from "@/lib/types"
 import { formatDate, cn } from "@/lib/utils"
 import {
@@ -16,8 +16,8 @@ import {
 import { mutate } from "swr"
 
 interface PushWizardProps {
-  aircraftList: string[]
-  onClose: () => void
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 interface CampaignEntry {
@@ -55,11 +55,12 @@ const STEPS = [
   "Review & Push",
 ]
 
-export function PushWizard({ aircraftList, onClose }: PushWizardProps) {
+export function PushWizard({ open, onOpenChange }: PushWizardProps) {
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+  const [aircraftList, setAircraftList] = useState<string[]>([])
 
   // Step 1: Campaign Info
   const [adloadVersion, setAdloadVersion] = useState("")
@@ -89,6 +90,22 @@ export function PushWizard({ aircraftList, onClose }: PushWizardProps) {
   // Step 5: Aircraft
   const [selectedAircraft, setSelectedAircraft] = useState<string[]>([])
   const [selectAllAircraft, setSelectAllAircraft] = useState(false)
+
+  // Load aircraft on mount
+  useEffect(() => {
+    if (open) {
+      getAircraft().then((res) => {
+        if (res.aircraft) {
+          setAircraftList(res.aircraft)
+        }
+      }).catch(console.error)
+    } else {
+      // Reset state when dialog closes
+      setStep(0)
+      setSuccess(false)
+      setError("")
+    }
+  }, [open])
 
   // Helpers
   const addCampaign = () =>
@@ -213,11 +230,11 @@ export function PushWizard({ aircraftList, onClose }: PushWizardProps) {
     }
   }
 
-  if (success) {
+  if (success && open) {
     return (
       <Dialog
-        open
-        onClose={onClose}
+        open={true}
+        onClose={() => onOpenChange(false)}
         title="Push Successful"
         description="Your campaign update has been sent to the selected aircraft."
       >
@@ -236,7 +253,7 @@ export function PushWizard({ aircraftList, onClose }: PushWizardProps) {
             {ads.filter((a) => a.key.trim()).length === 1 ? "ad" : "ads"}.
           </p>
           <button
-            onClick={onClose}
+            onClick={() => onOpenChange(false)}
             className="px-6 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             Done
@@ -248,8 +265,8 @@ export function PushWizard({ aircraftList, onClose }: PushWizardProps) {
 
   return (
     <Dialog
-      open
-      onClose={onClose}
+      open={open}
+      onClose={() => onOpenChange(false)}
       title="New Campaign Update"
       description={`Step ${step + 1} of ${STEPS.length}: ${STEPS[step]}`}
       className="max-w-2xl"
@@ -634,7 +651,7 @@ export function PushWizard({ aircraftList, onClose }: PushWizardProps) {
         {/* Navigation */}
         <div className="flex items-center justify-between pt-2 border-t">
           <button
-            onClick={() => (step > 0 ? setStep(step - 1) : onClose())}
+            onClick={() => (step > 0 ? setStep(step - 1) : onOpenChange(false))}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-card-foreground transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />

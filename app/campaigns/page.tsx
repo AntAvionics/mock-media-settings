@@ -5,6 +5,7 @@ import { Megaphone, Search, Plus } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { CampaignCard } from "@/components/campaign-card"
 import { EmptyState } from "@/components/empty-state"
+import { PushWizard } from "@/components/push-wizard"
 import { useAllRules } from "@/lib/hooks"
 import type { UpdateRecord, Campaign } from "@/lib/types"
 import Link from "next/link"
@@ -82,6 +83,7 @@ export default function CampaignsPage() {
   const { data, isLoading } = useAllRules()
   const [search, setSearch] = useState("")
   const [versionFilter, setVersionFilter] = useState("")
+  const [wizardOpen, setWizardOpen] = useState(false)
 
   const rules = (data?.rules ?? []) as unknown as UpdateRecord[]
 
@@ -110,13 +112,13 @@ export default function CampaignsPage() {
         title="Campaigns"
         description="Browse and manage your ad campaigns"
         actions={
-          <Link
-            href="/campaigns?create=true"
+          <button
+            onClick={() => setWizardOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
             New Campaign Update
-          </Link>
+          </button>
         }
       />
 
@@ -185,6 +187,8 @@ export default function CampaignsPage() {
           ))}
         </div>
       )}
+
+      <PushWizard open={wizardOpen} onOpenChange={setWizardOpen} />
     </div>
   )
 }

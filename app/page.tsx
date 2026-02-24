@@ -183,6 +183,8 @@ export default function DashboardPage() {
           </div>
         </Link>
       </div>
+
+      <PushWizard open={wizardOpen} onOpenChange={setWizardOpen} />
     </div>
   )
 }
