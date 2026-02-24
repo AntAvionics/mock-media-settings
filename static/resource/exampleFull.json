@@ -1,30 +1,64 @@
 {
-    "version":150,
-    "data":
-    {
-        "campaignA":
+  "version": 150,
+  "data": {
+    "campaignA": {
+      "priority": 80,
+      "targeting": {
+        "routes": [
+          { "origin": "LAX", "destination": "NRT" },
+          { "origin": "SFO", "destination": "HND" }
+        ],
+        "flight_duration_min": 360,
+        "flight_duration_max": 900,
+        "time_of_day": ["evening", "red_eye"],
+        "audience_tags": ["business", "economy"]
+      },
+      "creatives": [
         {
-            "priority": 80,
-            "targeting":
-            {
-                "routes": [{ "origin": "LAX", "destination": "NRT" }, { "origin": "SFO", "destination": "HND" }],
-                "flight_duration_min": 360,
-                "flight_duration_max": 900,
-                "time_of_day": ["evening", "red_eye"],
-                "audience_tags": ["business", "economy"]
-            }
-        },
-        "campaignB":
-        {
-            "priority": 60,
-            "targeting":
-            {
-                "routes": [{ "origin": "LAX", "destination": "NRT" }],
-                "flight_duration_min": 100,
-                "flight_duration_max": 200,
-                "time_of_day": ["evening"],
-                "audience_tags": ["first_class"]
-            }
+          "id": "CR-101",
+          "type": "video",
+          "format": "mp4",
+          "length_ms": 15000,
+          "mime_type": "video/mp4",
+          "asset_url": "https://media.example.com/creatives/cr-101.mp4"
         }
+      ],
+      "impression_cap": 1200,
+      "start_date": "2026-02-01T00:00:00Z",
+      "end_date": "2026-03-01T00:00:00Z"
+    },
+    "campaignB": {
+      "priority": 60,
+      "targeting": {
+        "routes": [{ "origin": "LAX", "destination": "NRT" }],
+        "flight_duration_min": 100,
+        "flight_duration_max": 200,
+        "time_of_day": ["evening"],
+        "audience_tags": ["first_class"]
+      },
+      "creatives": [
+        {
+          "id": "CR-102",
+          "type": "image",
+          "format": "png",
+          "length_ms": 5000,
+          "mime_type": "image/png",
+          "asset_url": "https://media.example.com/creatives/cr-102.png"
+        }
+      ],
+      "impression_cap": 800,
+      "start_date": "2026-02-15T00:00:00Z",
+      "end_date": "2026-04-01T00:00:00Z"
     }
+  },
+  "targeting_zones": {
+    "PA": { "enabled": false, "reason": "Safety PA overlap" },
+    "LVA": { "enabled": true },
+    "EN-US": { "languages": ["en-US"], "regions": ["US"] }
+  },
+  "metadata": {
+    "submitted_by": "ground-demo",
+    "description": "Example campaign configuration with targeting and creative assets",
+    "created_at": "2026-02-22T12:00:00Z"
+  }
 }
