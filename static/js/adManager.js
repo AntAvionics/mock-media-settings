@@ -7,10 +7,23 @@ const fleets = {
   "Fleet B": { type: "fleet", flights: ["BA201", "BA202", "BA203"] },
 };
 
+// AIRCRAFT STATUS DATA
+// Replaced detailed telemetry with an issue log for ad delivery per-flight.
+const aircraftStatus = {
+  "AA101": { status: "Active", issue: { hasIssue: false, message: "No ad delivery issues" } },
+  "AA102": { status: "On Ground", issue: { hasIssue: false, message: "No ad delivery issues" } },
+  "AA103": { status: "Maintenance", issue: { hasIssue: true, message: "Maintenance prevents ad display on this flight" } },
+  "AA104": { status: "Active", issue: { hasIssue: false, message: "No ad delivery issues" } },
+  "BA201": { status: "Active", issue: { hasIssue: false, message: "No ad delivery issues" } },
+  "BA202": { status: "Active", issue: { hasIssue: false, message: "No ad delivery issues" } },
+  "BA203": { status: "On Ground", issue: { hasIssue: true, message: "Regulatory block for this route - ads disabled" } },
+};
+
 // DATA STORAGE
 let ads = JSON.parse(localStorage.getItem("ads") || "[]");
 let editingId = null;
 let selectedFlights = [];
+let selectedFiles = [];
 
 // FLIGHT SELECTOR FUNCTIONS
 function renderFlightSelector() {
@@ -98,10 +111,49 @@ function toggleFlight(flightName) {
   }
 }
 
+// FILE HANDLING FUNCTIONS
+function handleFileSelection(event) {
+  selectedFiles = Array.from(event.target.files);
+  updateFilesList();
+}
+
+function updateFilesList() {
+  const filesList = document.getElementById("ad-files-list");
+  if (!filesList) return;
+
+  if (selectedFiles.length === 0) {
+    filesList.innerHTML = "";
+    return;
+  }
+
+  let html = '<div class="space-y-1 mt-2 p-2 bg-gray-50 rounded border border-gray-300">';
+  selectedFiles.forEach((file, index) => {
+    const size = (file.size / 1024).toFixed(2);
+    html += `
+      <div class="flex justify-between items-center">
+        <span>📄 ${file.name} (${size} KB)</span>
+        <button type="button" class="text-red-600 hover:text-red-700 text-xs font-semibold" onclick="removeFile(${index})">Remove</button>
+      </div>
+    `;
+  });
+  html += "</div>";
+  filesList.innerHTML = html;
+}
+
+function removeFile(index) {
+  selectedFiles.splice(index, 1);
+  const fileInput = document.getElementById("ad-files");
+  if (fileInput) {
+    fileInput.value = "";
+  }
+  updateFilesList();
+}
+
 // MODAL FUNCTIONS
 function openAddAdModal() {
   editingId = null;
   selectedFlights = [];
+  selectedFiles = [];
   const modalTitle = document.getElementById("modal-title");
   if (modalTitle) modalTitle.textContent = "New Advertisement";
 
@@ -126,6 +178,12 @@ function openAddAdModal() {
   const statusEl = document.getElementById("ad-status");
   if (statusEl) statusEl.value = "draft";
 
+  const fileInput = document.getElementById("ad-files");
+  if (fileInput) {
+    fileInput.value = "";
+  }
+  updateFilesList();
+
   renderFlightSelector();
   const modal = document.getElementById("adModal");
   if (modal) modal.classList.remove("hidden");
@@ -137,6 +195,7 @@ function openEditAdModal(id) {
 
   editingId = id;
   selectedFlights = [...(ad.flights || [])];
+  selectedFiles = [];
 
   const modalTitle = document.getElementById("modal-title");
   if (modalTitle) modalTitle.textContent = "Edit Advertisement";
@@ -149,6 +208,12 @@ function openEditAdModal(id) {
   document.getElementById("ad-start-date").value = ad.startDate || "";
   document.getElementById("ad-end-date").value = ad.endDate || "";
   document.getElementById("ad-status").value = ad.status;
+
+  const fileInput = document.getElementById("ad-files");
+  if (fileInput) {
+    fileInput.value = "";
+  }
+  updateFilesList();
 
   renderFlightSelector();
   const modal = document.getElementById("adModal");
@@ -178,6 +243,13 @@ function saveAd() {
     return;
   }
 
+  // Convert selected files to metadata (storing file names and sizes)
+  const files = selectedFiles.map((file) => ({
+    name: file.name,
+    size: file.size,
+    type: file.type,
+  }));
+
   if (editingId) {
     const ad = ads.find((a) => a.id === editingId);
     if (ad) {
@@ -190,6 +262,9 @@ function saveAd() {
       ad.endDate = endDate;
       ad.status = status;
       ad.flights = selectedFlights;
+      if (selectedFiles.length > 0 || !ad.files) {
+        ad.files = files;
+      }
     }
   } else {
     ads.push({
@@ -203,6 +278,7 @@ function saveAd() {
       endDate,
       status,
       flights: selectedFlights,
+      files: files,
       impressions: 0,
       clicks: 0,
       created: new Date().toLocaleDateString(),
@@ -278,6 +354,7 @@ function renderAds() {
         <tr>
           <th class="text-left p-2 border-b-2 border-gray-300 bg-gray-100 font-bold">Campaign</th>
           <th class="text-left p-2 border-b-2 border-gray-300 bg-gray-100 font-bold">Title</th>
+          <th class="text-left p-2 border-b-2 border-gray-300 bg-gray-100 font-bold">Files</th>
           <th class="text-left p-2 border-b-2 border-gray-300 bg-gray-100 font-bold">Flights</th>
           <th class="text-left p-2 border-b-2 border-gray-300 bg-gray-100 font-bold">Budget</th>
           <th class="text-left p-2 border-b-2 border-gray-300 bg-gray-100 font-bold">Impressions</th>
@@ -303,27 +380,39 @@ function renderAds() {
     const flightText =
       flightCount === 0 ? "No flights" : `${flightCount} selected`;
 
+    const fileCount = (ad.files || []).length;
+    const fileText = fileCount === 0 ? "No files" : `${fileCount} file${fileCount > 1 ? 's' : ''}`;
+
     html += `
-      <tr class="hover:bg-gray-50">
+      <tr class="hover:bg-gray-50 cursor-pointer" onclick="toggleAircraftExpand(${ad.id})">
         <td class="p-3 border-b border-gray-300"><strong>${ad.name}</strong></td>
         <td class="p-3 border-b border-gray-300">${ad.title}</td>
         <td class="p-3 border-b border-gray-300">
-          <button class="px-2 py-1 bg-purple-100 rounded text-xs text-purple-900 font-semibold cursor-pointer hover:bg-purple-200" onclick="toggleFlightDetails(${ad.id})" id="flights-btn-${ad.id}">
-            ${flightText}
+          <button class="px-2 py-1 bg-blue-100 rounded text-xs text-blue-900 font-semibold cursor-pointer hover:bg-blue-200" onclick="event.stopPropagation(); toggleFileDetails(${ad.id})" id="files-btn-${ad.id}">
+            ${fileText}
           </button>
-          <div id="flights-detail-${ad.id}" style="display:none;">
-            <div class="mt-2 p-2 bg-gray-50 rounded border border-gray-300 text-xs" id="flights-list-${ad.id}"></div>
+          <div id="files-detail-${ad.id}" style="display:none;">
+            <div class="mt-2 p-2 bg-gray-50 rounded border border-gray-300 text-xs" id="files-list-${ad.id}"></div>
           </div>
+        </td>
+        <td class="p-3 border-b border-gray-300">
+          <span class="px-2 py-1 bg-purple-100 rounded text-xs text-purple-900 font-semibold">${flightText}</span>
         </td>
         <td class="p-3 border-b border-gray-300">$${ad.budget.toLocaleString()}</td>
         <td class="p-3 border-b border-gray-300">${ad.impressions.toLocaleString()}</td>
         <td class="p-3 border-b border-gray-300">${ad.clicks.toLocaleString()}</td>
         <td class="p-3 border-b border-gray-300"><span class="inline-block px-2 py-1 rounded text-xs font-medium ${badgeClass}">${ad.status.toUpperCase()}</span></td>
         <td class="p-3 border-b border-gray-300">
-          <div class="flex gap-2">
+          <div class="flex gap-2" onclick="event.stopPropagation();">
             <button class="bg-gray-900 text-white px-3 py-1 rounded text-xs font-semibold hover:bg-gray-700" onclick="openEditAdModal(${ad.id})">Edit</button>
             <button class="bg-red-600 text-white px-3 py-1 rounded text-xs font-semibold hover:bg-red-700" onclick="deleteAd(${ad.id})">Delete</button>
           </div>
+        </td>
+      </tr>
+      <tr id="aircraft-expand-${ad.id}" class="hidden">
+        <td colspan="9" class="p-4 bg-indigo-50 border-b border-gray-300">
+          <div class="font-semibold text-indigo-900 mb-3">Aircraft Status</div>
+          <div id="aircraft-status-${ad.id}" class="grid grid-cols-2 gap-4"></div>
         </td>
       </tr>
     `;
@@ -362,6 +451,91 @@ function toggleFlightDetails(adId) {
   }
 }
 
+function toggleAircraftExpand(adId) {
+  const expandRow = document.getElementById(`aircraft-expand-${adId}`);
+  if (!expandRow) return;
+
+  const isHidden = expandRow.classList.contains("hidden");
+  
+  if (isHidden) {
+    expandRow.classList.remove("hidden");
+    populateAircraftStatus(adId);
+  } else {
+    expandRow.classList.add("hidden");
+  }
+}
+
+function populateAircraftStatus(adId) {
+  const ad = ads.find((a) => a.id === adId);
+  if (!ad) return;
+
+  const statusDiv = document.getElementById(`aircraft-status-${adId}`);
+  if (!statusDiv) return;
+
+  const flights = ad.flights || [];
+  
+  if (flights.length === 0) {
+    statusDiv.innerHTML = '<div class="text-gray-500 col-span-2 text-center py-4">No flights assigned to this ad</div>';
+    return;
+  }
+
+  let html = "";
+  flights.forEach((flight) => {
+    const statusObj = aircraftStatus[flight] || { status: "Unknown", issue: { hasIssue: false, message: "No data" } };
+
+    let statusColor = "bg-gray-100 text-gray-900";
+    if (statusObj.status === "Active") {
+      statusColor = "bg-green-100 text-green-900";
+    } else if (statusObj.status === "On Ground") {
+      statusColor = "bg-blue-100 text-blue-900";
+    } else if (statusObj.status === "Maintenance") {
+      statusColor = "bg-red-100 text-red-900";
+    }
+
+    const issue = statusObj.issue || { hasIssue: false, message: "No issues reported" };
+    const issueBadge = issue.hasIssue ? '<span class="px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-900">ISSUE</span>' : '<span class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-900">OK</span>';
+
+    html += `
+      <div class="p-3 bg-white border border-indigo-200 rounded">
+        <div class="font-semibold text-indigo-900 mb-2">✈ ${flight}</div>
+        <div class="flex gap-2 mb-2 items-center">
+          <span class="px-2 py-1 rounded text-xs font-medium ${statusColor}">${statusObj.status}</span>
+          ${issueBadge}
+        </div>
+        <div class="text-xs text-gray-600">
+          <div><strong>Ad Issue Log:</strong> ${issue.message}</div>
+        </div>
+      </div>
+    `;
+  });
+
+  statusDiv.innerHTML = html;
+}
+
+function toggleFileDetails(adId) {
+  const detail = document.getElementById(`files-detail-${adId}`);
+  const btn = document.getElementById(`files-btn-${adId}`);
+  const list = document.getElementById(`files-list-${adId}`);
+
+  if (!detail || !btn || !list) return;
+
+  if (detail.style.display === "none") {
+    const ad = ads.find((a) => a.id === adId);
+    const files = ad?.files || [];
+    if (files.length > 0) {
+      list.innerHTML = files.map((f) => `<div>📄 ${f.name} (${(f.size / 1024).toFixed(2)} KB)</div>`).join("");
+    } else {
+      list.innerHTML =
+        '<div class="text-gray-500">No files attached</div>';
+    }
+    detail.style.display = "block";
+    btn.style.background = "#dbeafe";
+  } else {
+    detail.style.display = "none";
+    btn.style.background = "#eff6ff";
+  }
+}
+
 // INITIALIZATION
 function initializeApp() {
   window.addEventListener("click", (e) => {
@@ -370,6 +544,11 @@ function initializeApp() {
       closeAddAdModal();
     }
   });
+
+  const fileInput = document.getElementById("ad-files");
+  if (fileInput) {
+    fileInput.addEventListener("change", handleFileSelection);
+  }
 
   renderFlightSelector();
   renderAds();

@@ -198,7 +198,23 @@
             Select one or more flights or entire fleets
           </div>
         </div>
-
+        
+        <div class="mb-3">
+          <label for="ad-files" class="block mt-2 text-sm font-medium"
+            >Upload Files</label
+          >
+          <input
+            type="file"
+            id="ad-files"
+            multiple
+            class="w-full box-border font-inherit text-sm px-2 py-2 rounded border border-gray-300 mt-1"
+          />
+          <div class="text-xs text-gray-500 mt-1">
+            Select one or more files to attach to this ad
+          </div>
+          <div id="ad-files-list" class="mt-2 text-xs"></div>
+        </div>
+      
         <div class="mb-3">
           <label for="ad-status" class="block mt-2 text-sm font-medium"
             >Status</label
@@ -212,6 +228,7 @@
             <option value="paused">Paused</option>
           </select>
         </div>
+
 
         <div class="flex gap-2 mt-5">
           <button
