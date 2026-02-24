@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, render_template
 
+from flask_cors import CORS
+
 from app.broadcast.models import BroadcastStore
 from app.broadcast.http_client import HttpClient
 from app.broadcast import routes as broadcast_routes
@@ -56,6 +58,7 @@ app = Flask(
     template_folder=os.path.join(os.path.dirname(__file__), "..", "templates"),
     static_folder=os.path.join(os.path.dirname(__file__), "..", "static"),
 )
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Base URL of the multi-aircraft rollback service (no trailing slash)
 app.config.setdefault("AIRCRAFT_BASE_URL", DEFAULT_AIRCRAFT_BASE_URL)

@@ -494,3 +494,58 @@ def _register_routes(app) -> None:
         if not record:
             return jsonify({"ok": False, "error": f"rule_id '{rule_id}' not found"}), 404
         return jsonify({"ok": True, "rule": record.to_dict()}), 200
+
+    @app.route("/api/v1/campaign-updates/rules/all", methods=["GET"])
+    def list_all_rules():
+        """Return all stored rules sorted newest-first (no filters required)."""
+        rm = app.config["RULE_MANAGER"]
+        results = rm.all_rules()
+        return jsonify({
+            "ok": True,
+            "count": len(results),
+            "rules": [r.to_dict() for r in results],
+        }), 200
+
+    @app.route("/api/v1/campaign-updates/rules/<rule_id>", methods=["PATCH"])
+    def rename_rule(rule_id: str):
+        """Rename / set display_name for a rule record."""
+        rm = app.config["RULE_MANAGER"]
+        record = rm.get_by_rule_id(rule_id)
+        if not record:
+            return jsonify({"ok": False, "error": f"rule_id '{rule_id}' not found"}), 404
+
+        data = request.get_json(force=True) or {}
+        display_name = data.get("display_name")
+        if display_name is None:
+            return jsonify({"ok": False, "error": "display_name is required"}), 400
+
+        record.display_name = str(display_name).strip()
+        return jsonify({"ok": True, "rule": record.to_dict()}), 200
+
+    @app.route("/api/v1/campaign-updates/rules/<rule_id>/reapply", methods=["POST"])
+    def reapply_rule(rule_id: str):
+        """Re-broadcast an existing rule to selected aircraft as a FULL push."""
+        rm = app.config["RULE_MANAGER"]
+        record = rm.get_by_rule_id(rule_id)
+        if not record:
+            return jsonify({"ok": False, "error": f"rule_id '{rule_id}' not found"}), 404
+
+        data = request.get_json(force=True) or {}
+        aircraft_ids = data.get("aircraft_ids", [])
+        if not aircraft_ids:
+            return jsonify({"ok": False, "error": "aircraft_ids list is required"}), 400
+
+        payload = dict(record.metadata)
+        payload["aircraft_ids"] = aircraft_ids
+        payload["rule_id"] = record.rule_id
+
+        result = _broadcast_to_aircrafts("FULL", payload)
+        if "error" in result:
+            return jsonify(result), 400
+
+        return jsonify({
+            "ok": True,
+            "rule_id": record.rule_id,
+            "reapplied_to": aircraft_ids,
+            "broadcast_result": result,
+        }), 200

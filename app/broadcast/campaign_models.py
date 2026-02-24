@@ -144,9 +144,10 @@ class RuleRecord:
     timestamp: datetime
     metadata: Dict[str, Any]             
     tail_number: Optional[str] = None
+    display_name: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        d = {
             "rule_id": self.rule_id,
             "payload_hash": self.payload_hash,
             "adload_version": self.adload_version,
@@ -155,6 +156,9 @@ class RuleRecord:
             "timestamp": self.timestamp.isoformat() + "Z",
             "metadata": self.metadata,
         }
+        if self.display_name is not None:
+            d["display_name"] = self.display_name
+        return d
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "RuleRecord":
@@ -172,4 +176,5 @@ class RuleRecord:
             tail_number=data.get("tail_number"),
             timestamp=ts,
             metadata=data.get("metadata", {}),
+            display_name=data.get("display_name"),
         )
