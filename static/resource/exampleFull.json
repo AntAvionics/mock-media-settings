@@ -2,6 +2,7 @@
   "version": 150,
   "data": {
     "campaignA": {
+      "id": 1001,
       "priority": 80,
       "targeting": {
         "routes": [
@@ -24,10 +25,21 @@
         }
       ],
       "impression_cap": 1200,
+      "flight_impression_cap": 800,
+      "client_impression_cap": 1500,
       "start_date": "2026-02-01T00:00:00Z",
-      "end_date": "2026-03-01T00:00:00Z"
+      "end_date": "2026-03-01T00:00:00Z",
+      "is_active": true,
+      "expired_at": "2026-03-01T23:59:59Z",
+      "targeting_language": ["en-US", "ja-JP"],
+      "targeting_zones": {
+        "PA": false,
+        "LVA": true,
+        "movie_midroll": true
+      }
     },
     "campaignB": {
+      "id": 1002,
       "priority": 60,
       "targeting": {
         "routes": [{ "origin": "LAX", "destination": "NRT" }],
@@ -47,8 +59,17 @@
         }
       ],
       "impression_cap": 800,
+      "flight_impression_cap": 600,
+      "client_impression_cap": 1000,
       "start_date": "2026-02-15T00:00:00Z",
-      "end_date": "2026-04-01T00:00:00Z"
+      "end_date": "2026-04-01T00:00:00Z",
+      "is_active": true,
+      "expired_at": "2026-04-01T23:59:59Z",
+      "targeting_language": ["en-US"],
+      "targeting_zones": {
+        "welcome_screen": true,
+        "seatback_display": false
+      }
     }
   },
   "targeting_zones": {
