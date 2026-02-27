@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, ChangeEvent, FormEvent} from "react";
+import FlightSelector from "./flights";
 
 type AddAdModalProps = {
   isOpen: boolean;
