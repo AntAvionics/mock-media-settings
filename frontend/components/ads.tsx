@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { AdFormData } from "./addModal";
+import EditAdModal from "./editModal";
 
 type AircraftStatusType = {
   status: string;
@@ -22,6 +23,16 @@ type Props = {
 export default function Ads({ ad, aircraftStatus = {}, onEdit, onDelete }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [statusData, setStatusData] = useState<AircraftStatusType[]>([]);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  const handleEditClick = () => {
+    setIsEditOpen(true);
+  };
+
+  const handleEditSave = (updatedData: AdFormData) => {
+    onEdit?.(ad.id);
+    setIsEditOpen(false);
+  };
 
   const toggleAircraftExpand = () => {
     const newExpandedState = !isExpanded;
@@ -103,7 +114,7 @@ export default function Ads({ ad, aircraftStatus = {}, onEdit, onDelete }: Props
         <td className="px-4 py-3 text-sm" onClick={(e) => e.stopPropagation()}>
           <div className="flex gap-2">
             <button
-              onClick={() => onEdit?.(ad.id)}
+              onClick={handleEditClick}
               className="px-3 py-1 bg-gray-900 text-white rounded text-xs font-semibold hover:bg-gray-700 transition-colors"
             >
               Edit
@@ -117,6 +128,13 @@ export default function Ads({ ad, aircraftStatus = {}, onEdit, onDelete }: Props
           </div>
         </td>
       </tr>
+
+      <EditAdModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        initialData={ad}
+        onSave={handleEditSave}
+      />
 
       {/* Expanded Aircraft Status Row */}
       {isExpanded && (
