@@ -10,6 +10,7 @@ type AddAdModalProps = {
 };
 
 export type AdFormData = {
+  id: string | number;
   name: string;
   title: string;
   description: string;
@@ -29,6 +30,7 @@ export default function AddAdModal({
   onSave,
 }: AddAdModalProps) {
   const [formData, setFormData] = useState<AdFormData>({
+    id: 0,
     name: "",
     title: "",
     description: "",

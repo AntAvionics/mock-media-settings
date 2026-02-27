@@ -4,7 +4,7 @@ import Ads from "./ads";
 export default function AdsTable({
   ads,
   onEdit,
-  onDelete
+  onDelete,
 }: {
   ads: AdFormData[];
   onEdit?: (id: string | number, updated: AdFormData) => void;
