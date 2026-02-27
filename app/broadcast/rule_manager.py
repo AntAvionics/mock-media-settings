@@ -3,7 +3,7 @@ import json
 import logging
 import threading
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from app.broadcast.campaign_models import CampaignUpdate, RuleRecord
 
@@ -80,7 +80,7 @@ class RuleManager:
         payload = update.to_dict().copy()
         payload.pop("tail_number", None)
         
-        canonical = json.dumps(update.to_dict(), sort_keys=True, separators=(",", ":"))
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(canonical.encode()).hexdigest()
 
     @staticmethod
