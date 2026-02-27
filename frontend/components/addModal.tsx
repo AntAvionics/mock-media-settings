@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, ChangeEvent, FormEvent} from "react";
+import { useState, ChangeEvent, FormEvent } from "react";
 import FlightSelector from "./flights";
 
 type AddAdModalProps = {
@@ -20,6 +20,7 @@ export type AdFormData = {
   endDate: string;
   status: "draft" | "active" | "paused";
   files: File[];
+  flights: string[];
 };
 
 export default function AddAdModal({
@@ -27,7 +28,7 @@ export default function AddAdModal({
   onClose,
   onSave,
 }: AddAdModalProps) {
-    const [formData, setFormData] = useState<AdFormData>({
+  const [formData, setFormData] = useState<AdFormData>({
     name: "",
     title: "",
     description: "",
@@ -38,17 +39,22 @@ export default function AddAdModal({
     endDate: "",
     status: "draft",
     files: [],
+    flights: [],
   });
 
   const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => {
     const { id, value } = e.target;
 
     setFormData((prev) => ({
       ...prev,
       [id.replace("ad-", "")]:
-        e.target.type === "number" ? (value === "" ? "" : Number(value)) : value,
+        e.target.type === "number"
+          ? value === ""
+            ? ""
+            : Number(value)
+          : value,
     }));
   };
 
@@ -172,9 +178,7 @@ export default function AddAdModal({
 
           {/* Dates */}
           <div className="mb-3">
-            <label className="block mt-2 text-sm font-medium">
-              Start Date
-            </label>
+            <label className="block mt-2 text-sm font-medium">Start Date</label>
             <input
               type="date"
               id="ad-startDate"
@@ -185,9 +189,7 @@ export default function AddAdModal({
           </div>
 
           <div className="mb-3">
-            <label className="block mt-2 text-sm font-medium">
-              End Date
-            </label>
+            <label className="block mt-2 text-sm font-medium">End Date</label>
             <input
               type="date"
               id="ad-endDate"
@@ -196,6 +198,13 @@ export default function AddAdModal({
               className="w-full text-sm px-2 py-2 rounded border border-gray-300 mt-1"
             />
           </div>
+
+          <FlightSelector
+            selectedFlights={formData.flights}
+            onFlightsChange={(flights) =>
+              setFormData((prev) => ({ ...prev, flights }))
+            }
+          />
 
           {/* File Upload */}
           <div className="mb-3">

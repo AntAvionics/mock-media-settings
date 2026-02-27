@@ -2,31 +2,35 @@
 
 import { useState } from "react";
 
-
 const fleets = {
   "Fleet A": { type: "fleet", flights: ["AA101", "AA102", "AA103", "AA104"] },
   "Fleet B": { type: "fleet", flights: ["BA201", "BA202", "BA203"] },
 };
 
+type FlightSelectorProps = {
+  selectedFlights: string[];
+  onFlightsChange: (flights: string[]) => void;
+};
 
-
-export default function FlightSelector() {
+export default function FlightSelector({
+  selectedFlights,
+  onFlightsChange,
+}: FlightSelectorProps) {
   const [expandedFleets, setExpandedFleets] = useState<string[]>([]);
-  const [selectedFlights, setSelectedFlights] = useState<string[]>([]);
 
   const toggleFleetExpanded = (fleetName: string) => {
     setExpandedFleets((prev) =>
       prev.includes(fleetName)
         ? prev.filter((f) => f !== fleetName)
-        : [...prev, fleetName]
+        : [...prev, fleetName],
     );
   };
 
   const toggleFlight = (flightName: string) => {
-    setSelectedFlights((prev) =>
-      prev.includes(flightName)
-        ? prev.filter((f) => f !== flightName)
-        : [...prev, flightName]
+    onFlightsChange(
+      selectedFlights.includes(flightName)
+        ? selectedFlights.filter((f) => f !== flightName)
+        : [...selectedFlights, flightName],
     );
   };
 
@@ -55,10 +59,7 @@ export default function FlightSelector() {
             {isExpanded && (
               <div className="p-2 bg-gray-50 border-t border-gray-300">
                 {data.flights.map((flight) => (
-                  <label
-                    key={flight}
-                    className="flex items-center gap-2 my-1"
-                  >
+                  <label key={flight} className="flex items-center gap-2 my-1">
                     <input
                       type="checkbox"
                       checked={selectedFlights.includes(flight)}
