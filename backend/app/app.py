@@ -277,11 +277,13 @@ def _broadcast_to_aircrafts(
             adload_version=str(payload.get("adload_version", payload.get("version", "unknown"))),
             update_type=payload.get("update_type", msg_type)
         )
+        """
         try:
             last_update = campaign_store_obj.updates[-1] if campaign_store_obj.updates else None
         except Exception as e:
             last_update = None
-        print("Logged campaign update event:", last_update)
+        logger.debug("Logged campaign update event: %s", last_update)
+        """
 
         per_aircraft_results[aid] = remote
 
