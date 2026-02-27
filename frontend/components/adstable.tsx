@@ -1,7 +1,15 @@
 import { AdFormData } from "@/components/addModal";
 import Ads from "./ads";
 
-export default function AdsTable({ ads }: { ads: AdFormData[] }) {
+export default function AdsTable({
+  ads,
+  onEdit,
+  onDelete
+}: {
+  ads: AdFormData[];
+  onEdit?: (id: string | number, updated: AdFormData) => void;
+  onDelete?: (id: string | number) => void;
+}) {
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
       <h3 className="m-0 px-4 py-3 text-lg font-semibold text-black border-b border-gray-200">
@@ -40,7 +48,12 @@ export default function AdsTable({ ads }: { ads: AdFormData[] }) {
             </thead>
             <tbody>
               {ads.map((ad, index) => (
-                <Ads key={index} ad={ad as any} />
+                <Ads
+                  key={index}
+                  ad={ad as any}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
               ))}
             </tbody>
           </table>

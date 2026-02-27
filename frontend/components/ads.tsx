@@ -16,7 +16,8 @@ type AircraftStatusType = {
 type Props = {
   ad: AdFormData & { id: string | number; impressions?: number; clicks?: number; flights?: string[] };
   aircraftStatus?: Record<string, AircraftStatusType>;
-  onEdit?: (id: string | number) => void;
+  // pass updated ad data to parent so it can refresh the list
+  onEdit?: (id: string | number, updated: AdFormData) => void;
   onDelete?: (id: string | number) => void;
 };
 
@@ -30,7 +31,8 @@ export default function Ads({ ad, aircraftStatus = {}, onEdit, onDelete }: Props
   };
 
   const handleEditSave = (updatedData: AdFormData) => {
-    onEdit?.(ad.id);
+    // forward both id and the new values
+    onEdit?.(ad.id, updatedData);
     setIsEditOpen(false);
   };
 
