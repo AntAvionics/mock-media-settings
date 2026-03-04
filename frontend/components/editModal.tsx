@@ -17,7 +17,10 @@ export default function EditAdModal({
   initialData,
   onSave,
 }: EditAdModalProps) {
-  const [formData, setFormData] = useState<AdFormData>(initialData);
+  const [formData, setFormData] = useState<AdFormData>({
+    campaignId: 0,
+    ...initialData,
+  });
 
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
@@ -65,6 +68,24 @@ export default function EditAdModal({
         </div>
 
         <form onSubmit={handleSubmit}>
+          {/* Campaign ID */}
+          <div className="mb-3">
+            <label className="block mt-2 text-sm font-medium">
+              Campaign ID
+            </label>
+            <input
+              type="number"
+              id="ad-campaignId"
+              placeholder="e.g., 1001"
+              value={formData.campaignId || ""}
+              onChange={handleChange}
+              className="w-full text-sm px-2 py-2 rounded border border-gray-300 mt-1"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Numeric ID used when broadcasting to aircraft.
+            </p>
+          </div>
+
           {/* Campaign Name */}
           <div className="mb-3">
             <label className="block mt-2 text-sm font-medium">
