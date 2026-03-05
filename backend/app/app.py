@@ -225,28 +225,25 @@ def _broadcast_to_aircrafts(
     rm = app.config["RULE_MANAGER"]
     rule_id = outbound_payload.get("rule_id", "N/A")
 
-    is_campaign_update = any(
-        k in outbound_payload for k in ("campaigns", "creatives", "targeting_zones")
-    )
-    if is_campaign_update:
-        try:
-            adload_version = str(
-                outbound_payload.get("adload_version") or
-                outbound_payload.get("version") or
-                "unknown"
-            )
-            # Use first aircraft as tail for rule record (fleet-level update)
-            update = CampaignUpdate.from_dict(
-                outbound_payload,
-                adload_version=adload_version,
-                tail_number=aircraft_ids[0] if len(aircraft_ids) == 1 else None,
-            )
-            record = rm.get_or_create_rule(update)
-            rule_id = record.rule_id
-            # Attach rule_id so aircraft can log it in impression offloads (COA-4)
-            outbound_payload["rule_id"] = rule_id
-        except Exception as e:
-            logger.warning("Could not generate rule_id: %s", e)
+    try:
+        adload_version = str(
+            outbound_payload.get("adload_version") or
+            outbound_payload.get("version") or
+            outbound_payload.get("prev") or
+            "unknown"
+        )
+        # Use first aircraft as tail for rule record (fleet-level update)
+        update = CampaignUpdate.from_dict(
+            outbound_payload,
+            adload_version=adload_version,
+            tail_number=aircraft_ids[0] if len(aircraft_ids) == 1 else None,
+        )
+        record = rm.get_or_create_rule(update)
+        rule_id = record.rule_id
+        # Attach rule_id so aircraft can log it in impression offloads (COA-4)
+        outbound_payload["rule_id"] = rule_id
+    except Exception as e:
+        logger.warning("Could not generate rule_id: %s", e)
 
     entry = store.add_entry(msg_type, outbound_payload)
 
