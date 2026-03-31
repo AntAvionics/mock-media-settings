@@ -1,0 +1,1473 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OneMedia Console — Deployment Dashboard</title>
+    <style>
+      :root {
+        --bg: #f3f6fb;
+        --surface: #ffffff;
+        --line: #e7ebf2;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --nav: #0b1533;
+        --primary: #2563eb;
+        --danger: #dc2626;
+        --shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 250px 1fr;
+        min-height: 100vh;
+      }
+      .sidebar {
+        background: linear-gradient(180deg, var(--nav), #081029 65%);
+        color: #dbe7ff;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 18px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .brand {
+        padding: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .brand h2 {
+        margin: 0;
+        font-size: 16px;
+        color: #f4f7ff;
+      }
+      .brand p {
+        margin: 4px 0 0;
+        font-size: 12px;
+        color: #9fb0da;
+      }
+      .navTitle {
+        margin: 0 10px 6px;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        color: #8ea2d8;
+        text-transform: uppercase;
+        font-weight: 700;
+      }
+      .navList {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 6px;
+      }
+      .navItem {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        color: #c4d4ff;
+        font-size: 14px;
+        border: 1px solid transparent;
+        cursor: default;
+      }
+      .navItem.active {
+        background: linear-gradient(90deg, #2457eb, #2c6dff);
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.15);
+      }
+      .navItem:not(.active) {
+        background: rgba(255, 255, 255, 0.02);
+        border-color: rgba(255, 255, 255, 0.05);
+      }
+      .sidebarFoot {
+        margin-top: auto;
+        font-size: 12px;
+        color: #8ea2d8;
+        padding: 10px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .content {
+        padding: 20px;
+        display: grid;
+        gap: 14px;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+      .title {
+        margin: 0;
+        font-size: 36px;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        color: #1f2937;
+      }
+      .subtitle {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn {
+        border: 1px solid var(--line);
+        background: #fff;
+        color: #334155;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 9px 14px;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+      }
+      .timePill {
+        font-size: 12px;
+        color: #64748b;
+        border: 1px solid var(--line);
+        padding: 9px 12px;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: var(--shadow);
+        min-width: 120px;
+        text-align: center;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(180px, 1fr));
+        gap: 12px;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        padding: 16px;
+      }
+      .metric {
+        display: grid;
+        grid-template-columns: 40px 1fr;
+        gap: 10px;
+        align-items: start;
+      }
+      .metricIcon {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        font-size: 14px;
+        font-weight: 700;
+        color: #3b82f6;
+        background: #eaf1ff;
+      }
+      .metricIcon.ok {
+        color: #059669;
+        background: #e8faf3;
+      }
+      .metricIcon.warn {
+        color: #dc2626;
+        background: #fef0f0;
+      }
+      .metricVal {
+        font-size: 34px;
+        line-height: 1;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #111827;
+      }
+      .metricLabel {
+        margin-top: 3px;
+        font-size: 14px;
+        color: #4b5563;
+        font-weight: 600;
+      }
+      .metricSub {
+        margin-top: 3px;
+        font-size: 12px;
+        color: #94a3b8;
+      }
+      .issues {
+        background: #fff7f7;
+        border: 1px solid #ffd9d9;
+        border-radius: 14px;
+        padding: 14px;
+      }
+      .issuesTitle {
+        color: var(--danger);
+        font-weight: 700;
+        margin-bottom: 10px;
+        font-size: 18px;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .chip {
+        border: 1px solid #fecaca;
+        color: #dc2626;
+        background: #fff;
+        font-weight: 700;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+      }
+      .filters {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: 1.2fr 1fr 1fr 1fr;
+        align-items: end;
+      }
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+      .field label {
+        font-size: 12px;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .field input,
+      .field select {
+        height: 42px;
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 10px;
+        padding: 0 12px;
+        color: #334155;
+        font-size: 14px;
+      }
+      .tableCard {
+        overflow: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 1100px;
+      }
+      th {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #64748b;
+        text-align: left;
+        padding: 12px 8px;
+        border-bottom: 1px solid var(--line);
+        background: #f8fafc;
+        position: sticky;
+        top: 0;
+      }
+      td {
+        padding: 11px 8px;
+        border-bottom: 1px solid #eef2f7;
+        font-size: 14px;
+        color: #1f2937;
+        vertical-align: top;
+      }
+      .tail {
+        font-weight: 700;
+        color: #334155;
+      }
+      .muted {
+        color: #94a3b8;
+        font-size: 12px;
+        margin-top: 2px;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        border-radius: 999px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border: 1px solid transparent;
+      }
+      .badge.success {
+        color: #065f46;
+        background: #ecfdf3;
+        border-color: #a7f3d0;
+      }
+      .badge.failed {
+        color: #991b1b;
+        background: #fef2f2;
+        border-color: #fecaca;
+      }
+      .badge.partial {
+        color: #92400e;
+        background: #fffbeb;
+        border-color: #fde68a;
+      }
+      .badge.pending {
+        color: #334155;
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+      }
+      .detailTag {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #dc2626;
+        background: #fff1f2;
+        border: 1px solid #fecdd3;
+        padding: 2px 7px;
+        border-radius: 999px;
+        margin-bottom: 5px;
+      }
+      .retryBtn {
+        border: 0;
+        color: #fff;
+        background: #2563eb;
+        border-radius: 9px;
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+        color: #64748b;
+        font-size: 12px;
+      }
+      .history {
+        max-height: 220px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+      }
+      .historyRow {
+        display: grid;
+        grid-template-columns: 140px 1fr 120px 140px;
+        gap: 10px;
+        border-bottom: 1px solid #eef2f7;
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+      .empty {
+        color: #94a3b8;
+        font-size: 13px;
+        padding: 18px;
+        text-align: center;
+      }
+      .opsGrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .opsTitle {
+        margin: 0 0 10px;
+        font-size: 18px;
+      }
+      .stack {
+        display: grid;
+        gap: 10px;
+      }
+      .opsHint {
+        font-size: 12px;
+        color: #64748b;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        font-size: 12px;
+        padding: 3px 9px;
+        background: #f8fafc;
+        color: #334155;
+        font-weight: 700;
+      }
+      .pill.ok {
+        color: #065f46;
+        border-color: #86efac;
+        background: #ecfdf3;
+      }
+      .pill.failed {
+        color: #991b1b;
+        border-color: #fecaca;
+        background: #fef2f2;
+      }
+      .input,
+      .select,
+      .textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        color: #334155;
+        font-size: 14px;
+        font-family: inherit;
+      }
+      .input,
+      .select {
+        height: 40px;
+        padding: 0 10px;
+      }
+      .textarea {
+        min-height: 120px;
+        resize: vertical;
+        padding: 10px;
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .codePanel {
+        min-height: 115px;
+        max-height: 260px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        background: #0b1220;
+        color: #e6eef8;
+        border-radius: 10px;
+        padding: 10px;
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+      }
+      .aircraftList {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #f8fafc;
+        max-height: 140px;
+        overflow: auto;
+        padding: 8px;
+        font-size: 12px;
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+      .aircraftRow {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 3px 0;
+        border-bottom: 1px dashed #e2e8f0;
+      }
+      .aircraftRow:last-child {
+        border-bottom: 0;
+      }
+      .warnText {
+        color: #b91c1c;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      code {
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+      @media (max-width: 1300px) {
+        .layout {
+          grid-template-columns: 84px 1fr;
+        }
+        .brand p,
+        .navTitle,
+        .navItem span,
+        .sidebarFoot {
+          display: none;
+        }
+        .navItem {
+          justify-content: center;
+        }
+        .brand h2 {
+          font-size: 12px;
+          text-align: center;
+        }
+      }
+      @media (max-width: 980px) {
+        .stats {
+          grid-template-columns: repeat(2, minmax(180px, 1fr));
+        }
+        .filters {
+          grid-template-columns: 1fr 1fr;
+        }
+        .title {
+          font-size: 28px;
+        }
+      }
+      @media (max-width: 760px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .sidebar {
+          display: none;
+        }
+        .stats {
+          grid-template-columns: 1fr;
+        }
+        .filters {
+          grid-template-columns: 1fr;
+        }
+        .top {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <h2>OneMedia Console</h2>
+          <p>Manage campaigns & fleets</p>
+        </div>
+        <div>
+          <p class="navTitle">Quick Links</p>
+          <ul class="navList">
+            <li class="navItem active"><span>Campaign Manager</span></li>
+          </ul>
+        </div>
+        <div class="sidebarFoot">
+          <div>Headend: <strong id="headendState">Checking…</strong></div>
+          <div style="margin-top: 4px">
+            Base: <code>{{ aircraft_base_url }}</code>
+          </div>
+          <div style="margin-top: 4px">
+            Default tail: <code>{{ default_aircraft_id or '—' }}</code>
+          </div>
+        </div>
+      </aside>
+      <main class="content">
+        <section class="top">
+          <div>
+            <h1 class="title">Deployment dashboard</h1>
+            <p class="subtitle">
+              At-a-glance health of recent deployments — see which planes need
+              attention and retry quickly.
+            </p>
+          </div>
+          <div class="toolbar">
+            <button class="btn" onclick="refreshAll()">Refresh</button>
+            <span class="timePill" id="lastRefresh">--:--:--</span>
+          </div>
+        </section>
+
+        <section class="stats">
+          <article class="card metric">
+            <div class="metricIcon">C</div>
+            <div>
+              <div class="metricVal" id="metricCampaigns">0</div>
+              <div class="metricLabel">Active Campaigns</div>
+              <div class="metricSub" id="metricCampaignSub">0 total</div>
+            </div>
+          </article>
+          <article class="card metric">
+            <div class="metricIcon">P</div>
+            <div>
+              <div class="metricVal" id="metricPlanesOnline">0</div>
+              <div class="metricLabel">Planes Online</div>
+              <div class="metricSub" id="metricPlanesSub">0 total in fleet</div>
+            </div>
+          </article>
+          <article class="card metric">
+            <div class="metricIcon ok">S</div>
+            <div>
+              <div class="metricVal" id="metricSuccessRate">0%</div>
+              <div class="metricLabel">Success Rate</div>
+              <div class="metricSub" id="metricSuccessSub">
+                0 of 0 deployments
+              </div>
+            </div>
+          </article>
+          <article class="card metric">
+            <div class="metricIcon warn">I</div>
+            <div>
+              <div class="metricVal" id="metricIssues">0</div>
+              <div class="metricLabel">Issues</div>
+              <div class="metricSub" id="metricIssuesSub">
+                0 failed · 0 pending
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="issues" id="issuesPanel">
+          <div class="issuesTitle">Active issues</div>
+          <div class="chips" id="issueChips"></div>
+        </section>
+
+        <section class="card">
+          <div class="filters">
+            <div class="field">
+              <label for="searchInput">Search</label
+              ><input
+                id="searchInput"
+                type="text"
+                placeholder="Tail #, campaign, error..."
+                oninput="applyFilters()"
+              />
+            </div>
+            <div class="field">
+              <label for="fleetFilter">Fleet</label
+              ><select id="fleetFilter" onchange="applyFilters()"></select>
+            </div>
+            <div class="field">
+              <label for="campaignFilter">Campaign</label
+              ><select id="campaignFilter" onchange="applyFilters()"></select>
+            </div>
+            <div class="field">
+              <label for="statusFilter">Status</label
+              ><select id="statusFilter" onchange="applyFilters()"></select>
+            </div>
+          </div>
+        </section>
+
+        <section class="card tableCard">
+          <table>
+            <thead>
+              <tr>
+                <th>Tail #</th>
+                <th>Fleet</th>
+                <th>Campaign</th>
+                <th>Version</th>
+                <th>Status</th>
+                <th>Last Checked</th>
+                <th>Details</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="recordsBody"></tbody>
+          </table>
+          <div class="foot">
+            <span id="recordCount">0 results</span
+            ><span
+              >Source: <code>/api/state</code> +
+              <code>/api/v1/campaign-updates/history</code></span
+            >
+          </div>
+        </section>
+
+        <section class="opsGrid">
+          <section class="card stack">
+            <h3 class="opsTitle">Operations</h3>
+            <div
+              class="row"
+              style="justify-content: space-between; align-items: center"
+            >
+              <span class="opsHint">Headend health</span>
+              <span id="headendPill" class="pill">checking...</span>
+            </div>
+
+            <div class="field">
+              <label for="aircraftMode">Selection mode</label>
+              <select
+                id="aircraftMode"
+                class="select"
+                onchange="onAircraftModeChange()"
+              >
+                <option value="single">Single aircraft</option>
+                <option value="multiple">Multiple aircraft</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="aircraftSelect">Available aircraft</label>
+              <select
+                id="aircraftSelect"
+                class="select"
+                multiple
+                size="4"
+                onchange="syncSelectionFromList()"
+              ></select>
+              <div class="opsHint">Use Ctrl/⌘ click for multi-select.</div>
+            </div>
+
+            <div class="field">
+              <label for="aircraftIdsInput"
+                >Aircraft IDs (comma-separated)</label
+              >
+              <input
+                id="aircraftIdsInput"
+                class="input"
+                type="text"
+                placeholder="AC001,AC002"
+                onblur="syncSelectionFromInput()"
+              />
+            </div>
+
+            <div class="row">
+              <button class="btn" onclick="reloadAircraftList()">
+                Refresh aircraft
+              </button>
+              <button class="btn" onclick="renderAircraftState()">
+                Load selected state
+              </button>
+            </div>
+
+            <div id="aircraftListPanel" class="aircraftList">
+              Loading aircraft list…
+            </div>
+
+            <div class="field">
+              <label for="rollbackTarget">Rollback target</label>
+              <select id="rollbackTarget" class="select">
+                <option value="lva">LVA — Last Version Active</option>
+                <option value="lkg">LKG — Last Known Good</option>
+                <option value="auto">AUTO — Automatic 2 Tier</option>
+              </select>
+            </div>
+
+            <div class="row">
+              <button
+                id="sendPatchBtn"
+                class="btn"
+                onclick="sendPatch()"
+                disabled
+              >
+                Send PATCH
+              </button>
+              <button class="btn" onclick="sendFull()">Send FULL</button>
+              <button
+                id="sendRollbackBtn"
+                class="btn"
+                onclick="sendRollback()"
+                disabled
+              >
+                Send ROLLBACK
+              </button>
+            </div>
+            <div id="initialWarning" class="warnText">
+              Initial FULL required before PATCH or ROLLBACK.
+            </div>
+          </section>
+
+          <section class="card stack">
+            <h3 class="opsTitle">Payload Editor</h3>
+            <div class="field">
+              <label for="patchJson">PATCH payload</label>
+              <textarea id="patchJson" class="textarea"></textarea>
+              <div class="row">
+                <button class="btn" onclick="fillExamplePatch()">
+                  PATCH example
+                </button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="fullJson">FULL snapshot payload</label>
+              <textarea id="fullJson" class="textarea"></textarea>
+              <div class="row">
+                <button class="btn" onclick="fillExampleFull()">
+                  FULL example
+                </button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Current broadcast summary</label>
+              <pre id="stateSummary" class="codePanel">Loading…</pre>
+            </div>
+
+            <div class="field">
+              <label>Selected aircraft state</label>
+              <pre id="currentState" class="codePanel">
+Load an aircraft state to inspect details.</pre
+              >
+            </div>
+
+            <div class="field">
+              <label>Activity / API response</label>
+              <pre id="activity" class="codePanel">Idle</pre>
+            </div>
+          </section>
+        </section>
+
+        <section class="card">
+          <h3 style="margin: 0 0 10px">Ground API call history</h3>
+          <div class="history" id="historyPane"></div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const FLEET_NAMES = [
+        "Pacific Fleet",
+        "Atlantic Fleet",
+        "Domestic East",
+        "Global West",
+        "LAX-ICN Ops",
+      ];
+      let rows = [];
+      let callHistory = [];
+      let knownAircraft = {};
+
+      function pretty(obj) {
+        return JSON.stringify(obj, null, 2);
+      }
+
+      async function fetchJson(path, opts) {
+        const res = await fetch(path, opts);
+        const text = await res.text();
+        try {
+          return {
+            ok: res.ok,
+            status: res.status,
+            json: JSON.parse(text),
+            text,
+          };
+        } catch {
+          return { ok: res.ok, status: res.status, json: null, text };
+        }
+      }
+
+      function fmtRelative(iso) {
+        if (!iso) return "—";
+        const ts = new Date(iso).getTime();
+        if (Number.isNaN(ts)) return iso;
+        const sec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+        if (sec < 60) return `${sec}s ago`;
+        if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+        if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+        return `${Math.floor(sec / 86400)}d ago`;
+      }
+
+      function safe(v, fallback = "—") {
+        return v === null || v === undefined || v === "" ? fallback : String(v);
+      }
+      function fleetForTail(tail) {
+        if (!tail) return "Unassigned";
+        const sum = [...tail].reduce((acc, c) => acc + c.charCodeAt(0), 0);
+        return FLEET_NAMES[sum % FLEET_NAMES.length];
+      }
+
+      function classifyIssue(detail) {
+        const text = (detail || "").toLowerCase();
+        if (!text || text === "—") return "Unknown";
+        if (text.includes("timeout")) return "Timeout";
+        if (
+          text.includes("connect") ||
+          text.includes("unreachable") ||
+          text.includes("refused")
+        )
+          return "Connectivity";
+        if (text.includes("version") || text.includes("mismatch"))
+          return "Version Mismatch";
+        if (text.includes("config") || text.includes("validation"))
+          return "Config Error";
+        return "Other";
+      }
+
+      function normalizeStatus(status, remoteOk) {
+        const s = (status || "pending").toLowerCase();
+        if (s === "ok") return "success";
+        if (s === "failed") return "failed";
+        if (s === "partial") return "partial";
+        if (remoteOk === true) return "success";
+        if (remoteOk === false) return "failed";
+        return "pending";
+      }
+
+      function statusLabel(s) {
+        return (
+          {
+            success: "Success",
+            failed: "Failed",
+            partial: "Partial",
+            pending: "Pending",
+          }[s] || "Pending"
+        );
+      }
+      function statusBadge(status) {
+        return `<span class="badge ${status}">● ${statusLabel(status)}</span>`;
+      }
+
+      async function getJson(path) {
+        const response = await fetchJson(path);
+        if (response.json !== null) {
+          return {
+            ok: response.ok,
+            status: response.status,
+            data: response.json,
+          };
+        }
+        return {
+          ok: false,
+          status: response.status,
+          data: { raw: response.text },
+        };
+      }
+
+      function getSelectedAircraftIds() {
+        const mode = document.getElementById("aircraftMode")?.value || "single";
+        const raw = (
+          document.getElementById("aircraftIdsInput")?.value || ""
+        ).trim();
+        let ids = [];
+
+        if (raw) {
+          ids = raw
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        } else {
+          const sel = document.getElementById("aircraftSelect");
+          ids = Array.from(sel?.options || [])
+            .filter((o) => o.selected)
+            .map((o) => o.value);
+        }
+
+        ids = Array.from(new Set(ids));
+        if (mode === "single" && ids.length > 1) ids = ids.slice(0, 1);
+        return ids;
+      }
+
+      function onAircraftModeChange() {
+        const mode = document.getElementById("aircraftMode").value;
+        const sel = document.getElementById("aircraftSelect");
+        if (mode === "single") {
+          const first = sel.options[0];
+          Array.from(sel.options).forEach((o) => {
+            o.selected = false;
+          });
+          if (first) first.selected = true;
+          syncSelectionFromList();
+        }
+      }
+
+      function syncSelectionFromList() {
+        const sel = document.getElementById("aircraftSelect");
+        const ids = Array.from(sel.options)
+          .filter((o) => o.selected)
+          .map((o) => o.value);
+        document.getElementById("aircraftIdsInput").value = ids.join(",");
+      }
+
+      function syncSelectionFromInput() {
+        const ids = getSelectedAircraftIds();
+        const sel = document.getElementById("aircraftSelect");
+        Array.from(sel.options).forEach((o) => {
+          o.selected = ids.includes(o.value);
+        });
+      }
+
+      function withAircraftRouting(basePayload) {
+        const body = { ...basePayload };
+        const ids = getSelectedAircraftIds();
+        if (ids.length === 1) body.aircraft_id = ids[0];
+        else if (ids.length > 1) body.aircraft_ids = ids;
+        return body;
+      }
+
+      function parseAndPrettify(id) {
+        const el = document.getElementById(id);
+        const obj = JSON.parse(el.value);
+        el.value = pretty(obj);
+        return obj;
+      }
+
+      async function fillExamplePatch() {
+        try {
+          const res = await fetch("/static/resource/examplePatch.json");
+          document.getElementById("patchJson").value = pretty(await res.json());
+        } catch {
+          document.getElementById("patchJson").value = pretty({
+            patch_id: 151,
+            prev: 150,
+            adload_version: "2.1.4",
+            update_type: "PATCH",
+            changes: { campaignA: { priority: 70 } },
+          });
+        }
+      }
+
+      async function fillExampleFull() {
+        try {
+          const res = await fetch("/static/resource/exampleFull.json");
+          document.getElementById("fullJson").value = pretty(await res.json());
+        } catch {
+          document.getElementById("fullJson").value = pretty({
+            version: 150,
+            adload_version: "2.1.4",
+            update_type: "FULL",
+            data: { campaignA: { priority: 80 } },
+          });
+        }
+      }
+
+      function renderActivity(response) {
+        document.getElementById("activity").textContent = response.json
+          ? pretty(response.json)
+          : response.text;
+      }
+
+      function renderStateSummary(state) {
+        const panel = document.getElementById("stateSummary");
+        if (!state?.history?.length) {
+          panel.textContent = "No broadcasts yet.";
+          return;
+        }
+        const h = state.history[0];
+        panel.textContent =
+          `Broadcasts: ${state.history.length}\n` +
+          `Last: ${h.type} #${h.id}\n` +
+          `Status: ${h.status || "unknown"}\n` +
+          `Time: ${h.timestamp}`;
+      }
+
+      function updateControls(state) {
+        const hasFull = state?.history?.some((h) => h.type === "FULL");
+        document.getElementById("sendPatchBtn").disabled = !hasFull;
+        document.getElementById("sendRollbackBtn").disabled = !hasFull;
+        document.getElementById("initialWarning").style.display = hasFull
+          ? "none"
+          : "block";
+      }
+
+      async function renderAircraftState() {
+        let id = getSelectedAircraftIds()[0];
+        if (!id) id = Object.keys(knownAircraft)[0];
+
+        const url = id
+          ? `/api/aircraft_state?aircraft_id=${encodeURIComponent(id)}`
+          : "/api/aircraft_state";
+        const res = await fetchJson(url);
+        if (!res.json) {
+          document.getElementById("currentState").textContent =
+            res.text || "Unable to load state.";
+          return;
+        }
+        const payload = res.json.result ? res.json.result.response : res.json;
+        document.getElementById("currentState").textContent = pretty(payload);
+      }
+
+      function updateHeadendPill(pingRes) {
+        const pill = document.getElementById("headendPill");
+        if (!pingRes.ok || !pingRes.data) {
+          pill.textContent = "offline";
+          pill.className = "pill failed";
+          return;
+        }
+        const count = pingRes.data.response?.aircraft_count;
+        pill.textContent =
+          typeof count === "number" ? `ok · aircraft=${count}` : "ok";
+        pill.className = "pill ok";
+      }
+
+      function renderAircraftListResult(result) {
+        const panel = document.getElementById("aircraftListPanel");
+        if (!result?.ok || !result?.aircraft) {
+          panel.textContent = "Unable to load aircraft list.";
+          return;
+        }
+
+        knownAircraft = result.aircraft;
+        const ids = Object.keys(knownAircraft).sort();
+        const sel = document.getElementById("aircraftSelect");
+        sel.innerHTML = "";
+
+        ids.forEach((id, idx) => {
+          const opt = document.createElement("option");
+          opt.value = id;
+          opt.textContent = id;
+          if (idx === 0) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        syncSelectionFromList();
+
+        panel.innerHTML = ids.length
+          ? ids
+              .map((id) => {
+                const info = knownAircraft[id] || {};
+                const lva =
+                  info.lva !== undefined && info.lva !== null
+                    ? `LVA: ${info.lva}`
+                    : "LVA: -";
+                const lkg =
+                  info.lkg !== undefined && info.lkg !== null
+                    ? `LKG: ${info.lkg}`
+                    : "LKG: -";
+                return `<div class="aircraftRow"><strong>${id}</strong><span>${lva} · ${lkg}</span></div>`;
+              })
+              .join("")
+          : "No aircraft reported by headend.";
+      }
+
+      async function reloadAircraftList() {
+        const res = await getJson("/api/aircraft");
+        const inner = res.data?.response || res.data;
+        renderAircraftListResult(inner);
+      }
+
+      async function sendPatch() {
+        let obj;
+        try {
+          obj = parseAndPrettify("patchJson");
+        } catch {
+          alert("Invalid JSON in PATCH payload");
+          return;
+        }
+
+        const body = withAircraftRouting(obj);
+        const res = await fetchJson("/api/send_patch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        renderActivity(res);
+        await refreshAll();
+        await renderAircraftState();
+      }
+
+      async function sendFull() {
+        let obj;
+        try {
+          obj = parseAndPrettify("fullJson");
+        } catch {
+          alert("Invalid JSON in FULL payload");
+          return;
+        }
+
+        const body = withAircraftRouting(obj);
+        const res = await fetchJson("/api/send_full", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        renderActivity(res);
+        await refreshAll();
+        await renderAircraftState();
+      }
+
+      async function sendRollback() {
+        const target = document.getElementById("rollbackTarget").value;
+        const body = withAircraftRouting({ target });
+
+        const res = await fetchJson("/api/send_rollback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        renderActivity(res);
+        await refreshAll();
+        await renderAircraftState();
+      }
+
+      function buildRowsFromState(stateData) {
+        const history = Array.isArray(stateData?.history)
+          ? stateData.history
+          : [];
+        const flattened = [];
+
+        history.forEach((entry) => {
+          const remoteMap = entry.remote_by_aircraft || {};
+          const payload = entry.payload || {};
+          const aircraftIds = Object.keys(remoteMap);
+
+          if (aircraftIds.length === 0) {
+            flattened.push({
+              id: entry.id,
+              tail: payload.aircraft_id || "UNASSIGNED",
+              fleet: fleetForTail(payload.aircraft_id || "UNASSIGNED"),
+              campaign:
+                payload.campaign_name ||
+                payload.update_type ||
+                entry.type ||
+                "Campaign Update",
+              version: safe(
+                payload.adload_version || payload.version,
+                "unknown",
+              ),
+              status: normalizeStatus(entry.status, undefined),
+              checkedAt: entry.timestamp,
+              detailTag: "PENDING",
+              detailMsg: "No per-aircraft response yet",
+              type: entry.type || "PATCH",
+              payload,
+            });
+          }
+
+          aircraftIds.forEach((tail) => {
+            const remote = remoteMap[tail] || {};
+            const result = remote.result || {};
+            const response = result.response || {};
+            const err = safe(
+              result.error || response.error || response.message,
+              "—",
+            );
+            const st = normalizeStatus(entry.status, result.ok);
+
+            flattened.push({
+              id: entry.id,
+              tail,
+              fleet: fleetForTail(tail),
+              campaign:
+                payload.campaign_name ||
+                payload.campaign ||
+                payload.update_type ||
+                entry.type ||
+                "Campaign Update",
+              version: safe(
+                payload.adload_version || payload.version || payload.prev,
+                "unknown",
+              ),
+              status: st,
+              checkedAt: remote._updated_at || entry.timestamp,
+              detailTag:
+                st === "failed" ? classifyIssue(err).toUpperCase() : "INFO",
+              detailMsg: st === "success" ? "Applied successfully" : err,
+              type: entry.type || "PATCH",
+              payload,
+            });
+          });
+        });
+
+        return flattened;
+      }
+
+      function renderFilters() {
+        const fleets = ["All Fleets", ...new Set(rows.map((r) => r.fleet))];
+        const campaigns = [
+          "All Campaigns",
+          ...new Set(rows.map((r) => r.campaign)),
+        ];
+        const statuses = [
+          "All Statuses",
+          "Success",
+          "Failed",
+          "Partial",
+          "Pending",
+        ];
+        document.getElementById("fleetFilter").innerHTML = fleets
+          .map((f) => `<option>${f}</option>`)
+          .join("");
+        document.getElementById("campaignFilter").innerHTML = campaigns
+          .map((c) => `<option>${c}</option>`)
+          .join("");
+        document.getElementById("statusFilter").innerHTML = statuses
+          .map((s) => `<option>${s}</option>`)
+          .join("");
+      }
+
+      function renderStats() {
+        const campaigns = new Set(rows.map((r) => r.campaign));
+        const tails = new Set(rows.map((r) => r.tail));
+        const success = rows.filter((r) => r.status === "success").length;
+        const failed = rows.filter((r) => r.status === "failed").length;
+        const pending = rows.filter((r) => r.status === "pending").length;
+        const total = rows.length;
+        const successRate = total ? Math.round((success / total) * 100) : 0;
+
+        document.getElementById("metricCampaigns").textContent = String(
+          campaigns.size,
+        );
+        document.getElementById("metricCampaignSub").textContent =
+          `${campaigns.size} total`;
+        document.getElementById("metricPlanesOnline").textContent = String(
+          tails.size,
+        );
+        document.getElementById("metricPlanesSub").textContent =
+          `${tails.size} total in fleet`;
+        document.getElementById("metricSuccessRate").textContent =
+          `${successRate}%`;
+        document.getElementById("metricSuccessSub").textContent =
+          `${success} of ${total} deployments`;
+        document.getElementById("metricIssues").textContent = String(
+          failed + pending,
+        );
+        document.getElementById("metricIssuesSub").textContent =
+          `${failed} failed · ${pending} pending`;
+
+        const issueMap = {};
+        rows
+          .filter((r) => r.status === "failed" || r.status === "partial")
+          .forEach((r) => {
+            const key = classifyIssue(r.detailMsg);
+            issueMap[key] = (issueMap[key] || 0) + 1;
+          });
+
+        const entries = Object.entries(issueMap).sort((a, b) => b[1] - a[1]);
+        document.getElementById("issueChips").innerHTML = entries.length
+          ? entries
+              .map(([k, v]) => `<span class="chip">${k} ×${v}</span>`)
+              .join("")
+          : `<span class="chip" style="border-color:#bbf7d0;color:#166534;">No active issues</span>`;
+      }
+
+      function renderTable(filteredRows) {
+        document.getElementById("recordCount").textContent =
+          `${filteredRows.length} results`;
+        const body = document.getElementById("recordsBody");
+
+        if (!filteredRows.length) {
+          body.innerHTML = `<tr><td colspan="8" class="empty">No deployment records match current filters.</td></tr>`;
+          return;
+        }
+
+        body.innerHTML = filteredRows
+          .map(
+            (r) => `
+      <tr>
+        <td><div class="tail">${safe(r.tail)}</div><div class="muted">${safe(r.tail)}</div></td>
+        <td>${safe(r.fleet)}</td>
+        <td><div>${safe(r.campaign)}</div><div class="muted">${safe(r.type)} · Rule ${safe(r.payload.rule_id, "N/A")}</div></td>
+        <td><code>${safe(r.version)}</code></td>
+        <td>${statusBadge(r.status)}</td>
+        <td>${fmtRelative(r.checkedAt)}</td>
+        <td><div class="detailTag">${safe(r.detailTag)}</div><div>${safe(r.detailMsg)}</div></td>
+        <td><button class="retryBtn" onclick="retryDeployment(${r.id}, '${safe(r.tail)}')">Retry</button></td>
+      </tr>
+    `,
+          )
+          .join("");
+      }
+
+      function renderCallHistory() {
+        const pane = document.getElementById("historyPane");
+        if (!callHistory.length) {
+          pane.innerHTML = `<div class="empty">No call history yet.</div>`;
+          return;
+        }
+
+        pane.innerHTML = callHistory
+          .slice(0, 40)
+          .map(
+            (row) => `
+      <div class="historyRow">
+        <div><strong>${safe(row.tail_number, "unknown")}</strong></div>
+        <div><code>${safe(row.rule_id, "N/A")}</code></div>
+        <div>${safe(row.adload_version, "unknown")}</div>
+        <div>${fmtRelative(row.timestamp)}</div>
+      </div>
+    `,
+          )
+          .join("");
+      }
+
+      function applyFilters() {
+        const q = document
+          .getElementById("searchInput")
+          .value.trim()
+          .toLowerCase();
+        const fleet = document.getElementById("fleetFilter").value;
+        const campaign = document.getElementById("campaignFilter").value;
+        const status = document.getElementById("statusFilter").value;
+
+        const filtered = rows.filter((r) => {
+          const text =
+            `${r.tail} ${r.fleet} ${r.campaign} ${r.detailMsg} ${r.version}`.toLowerCase();
+          if (q && !text.includes(q)) return false;
+          if (fleet !== "All Fleets" && r.fleet !== fleet) return false;
+          if (campaign !== "All Campaigns" && r.campaign !== campaign)
+            return false;
+          if (status !== "All Statuses" && statusLabel(r.status) !== status)
+            return false;
+          return true;
+        });
+
+        renderTable(filtered);
+      }
+
+      async function retryDeployment(entryId, tail) {
+        const row = rows.find((r) => r.id === entryId && r.tail === tail);
+        if (!row) return;
+
+        const endpointMap = {
+          PATCH: "/api/send_patch",
+          FULL: "/api/send_full",
+          ROLLBACK: "/api/send_rollback",
+        };
+        const endpoint = endpointMap[row.type] || "/api/send_patch";
+        const payload = { ...(row.payload || {}), aircraft_id: tail };
+
+        try {
+          const res = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (!res.ok) {
+            const txt = await res.text();
+            alert(`Retry failed (${res.status}): ${txt}`);
+            return;
+          }
+
+          await refreshAll();
+        } catch (e) {
+          alert(`Retry failed: ${e}`);
+        }
+      }
+
+      async function refreshAll() {
+        const [stateRes, historyRes, pingRes] = await Promise.all([
+          getJson("/api/state"),
+          getJson("/api/v1/campaign-updates/history"),
+          getJson("/api/headend_ping"),
+        ]);
+
+        rows = buildRowsFromState(stateRes.data || {});
+        callHistory = Array.isArray(historyRes?.data?.updates)
+          ? historyRes.data.updates
+          : [];
+
+        const headendState = document.getElementById("headendState");
+        headendState.textContent = pingRes.ok ? "Online" : "Offline";
+        headendState.style.color = pingRes.ok ? "#86efac" : "#fca5a5";
+
+        renderFilters();
+        renderStats();
+        applyFilters();
+        renderCallHistory();
+        renderStateSummary(stateRes.data || {});
+        updateControls(stateRes.data || {});
+        updateHeadendPill(pingRes);
+        document.getElementById("lastRefresh").textContent =
+          new Date().toLocaleTimeString();
+      }
+
+      async function bootstrap() {
+        await Promise.all([
+          fillExamplePatch(),
+          fillExampleFull(),
+          reloadAircraftList(),
+          refreshAll(),
+        ]);
+        await renderAircraftState();
+      }
+
+      bootstrap();
+      setInterval(refreshAll, 10000);
+    </script>
+  </body>
+</html>

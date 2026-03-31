@@ -118,7 +118,7 @@ def _register_routes(app) -> None:
         """
         app_obj = _require_app()
         return render_template(
-            "index.html",
+            "console.html",
             aircraft_base_url=app_obj.config["AIRCRAFT_BASE_URL"],
             default_aircraft_id=app_obj.config.get("DEFAULT_AIRCRAFT_ID"),
         )
